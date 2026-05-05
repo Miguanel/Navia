@@ -1,0 +1,51 @@
+{
+  "dictionary": {
+    "herbs": {
+      "bylica": { "name": "Bylica", "desc": "Święte ziele odpędzające demony i choroby." },
+      "dziurawiec": { "name": "Dziurawiec", "desc": "Ziele świętojańskie, leczy głębokie rany." },
+      "krwawnik": { "name": "Krwawnik", "desc": "Tamuje krew, niezbędny w torbie każdego woja." }
+    },
+    "trees": {
+      "oak": { "name": "Dąb", "desc": "Święte drzewo Peruna. Daje najtwardsze drewno." },
+      "linden": { "name": "Lipa", "desc": "Miękkie drewno na tarcze i lecznicze kwiaty." },
+      "birch": { "name": "Brzoza", "desc": "Doskonała na dziegieć i rozpałkę." }
+    },
+    "animals": {
+      "boar": { "name": "Dzik", "desc": "Agresywny odyniec, cenne mięso i kły." },
+      "deer": { "name": "Jeleń", "desc": "Szlachetny zwierz, daje skóry i wspaniałe poroże." },
+      "bear": { "name": "Niedźwiedź", "desc": "Władca puszczy. Piekielnie niebezpieczny." }
+    }
+  },
+  "events": {
+    "expedition_start": [
+      "O świcie Drużyna opuściła bezpieczne mury Grodu, ruszając w nieznane.",
+      "Gdy mgły opadły znad bagien, nasi śmiałkowie zagłębili się w prastarą puszczę.",
+      "Z błogosławieństwem Welesa na ustach, wyprawa przekroczyła granicę lasu."
+    ],
+    "gather_wood_oak": [
+      "Topory poszły w ruch. Padły wiekowe dęby, dając twarde drewno na palisadę.",
+      "W ofierze dla bogów ścięto potężny dąb, zyskując wspaniały budulec."
+    ],
+    "gather_herb_dziurawiec": [
+      "Na słonecznej polanie znachorka odnalazła Dziurawiec. Będzie z niego świetny napar na rany.",
+      "Dobre duchy lasu ukazały nam kępy Dziurawca. Zioła zostały starannie zebrane."
+    ],
+    "hunt_boar_success": [
+      "Zasadzka się udała! Potężny odyniec padł od naszych oszczepów, dając cenne mięso.",
+      "Po zaciętej walce w błocie, dzik został powalony. Drużyna wraca z bogatym łupem."
+    ],
+    "combat_wolf_wound": [
+      "Wataha wilków zaatakowała z zaskoczenia! Odparto je, lecz krew przelała się na mech (Drużyna odnosi rany).",
+      "Ślepia zalśniły w mroku. Walka była krótka, ale ostre kły sięgnęły naszych (Drużyna odnosi rany)."
+    ],
+    "combat_bear_fled": [
+      "Stanęliśmy oko w oko z potężnym Niedźwiedziem. Z rozsądku zarządzono odwrót. Uciekliśmy, gubiąc część zapasów.",
+      "Ryk wstrząsnął lasem. To był Pan Puszczy. Drużyna w panice rzuciła się do ucieczki, ratując życie."
+    ],
+    "expedition_end": [
+      "Przed zmierzchem Drużyna przekroczyła bramy Grodu, niosąc dary dziczy.",
+      "Zmęczeni, ale w jednym kawałku, powrócili do osady. Ich pieśni niosły się po okolicy.",
+      "Wyprawa dobiegła końca. Czas rozdzielić łupy i opatrzyć rany."
+    ]
+  }
+}

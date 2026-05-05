@@ -1,0 +1,11 @@
+{
+  "short_name": "Navia",
+  "name": "Navia: Realm of Veles",
+  "icons": [
+    { "src": "assets/icon-192.png", "type": "image/png", "sizes": "192x192" }
+  ],
+  "start_url": "./index.html",
+  "background_color": "#0a0a0a",
+  "display": "standalone",
+  "theme_color": "#4a0000"
+}

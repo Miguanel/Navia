@@ -1,0 +1,48 @@
+{
+  "chopping": [
+    "Chwała Welesowi!",
+    "Więcej drewna...",
+    "Złoto dla Władycy.",
+    "Ciężka praca...",
+    "Dąb jak dąb, trzeba rąbać."
+  ],
+  "mining": [
+    "Kuj żelazo... tfu, kamień.",
+    "Twarda sztuka.",
+    "Kilof mi się tępi!",
+    "Dla Władycy!",
+    "Głęboko dziś kopiemy..."
+  ],
+  "going_to_tavern": [
+    "Czas na przerwę!",
+    "Wyschło mi w gardle...",
+    "Idę wydać złoto!",
+    "Kierunek: Karczma!",
+    "Zasłużyłem na miodowe."
+  ],
+  "drinking": [
+    "Ale zimne! 🍺",
+    "Za zdrowie Władycy! 🍻",
+    "Tego mi było trzeba.",
+    "Dobre piwo!",
+    "Karczmarzu, jeszcze jedno!"
+  ],
+  "returning": [
+    "Wracam do roboty.",
+    "Koniec obijania się.",
+    "Samo się nie zrobi.",
+    "Nogi same niosą do chaty."
+  ],
+  "collecting": [
+    "Ciężkie te bele...",
+    "Magazyn pełny, trzeba opróżnić.",
+    "Wszystko do Skarbca!",
+    "Władyka będzie zadowolony."
+  ],
+  "delivering": [
+      "Dostawa dotarła!",
+      "Uff, co za ciężar.",
+      "Zasoby zabezpieczone.",
+      "Idę po następną partię."
+  ]
+}

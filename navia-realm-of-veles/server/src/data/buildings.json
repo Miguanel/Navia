@@ -1,0 +1,65 @@
+{
+  "city": {
+    "name": "Wielki Gród",
+    "description": "Serce Twojego królestwa.",
+    "icon": "assets/map_icons/city.png",
+    "cost": { "gold": 500, "wood_birch": 100 },
+    "allowedTerrain": ["any"]
+  },
+  "sawmill": {
+    "name": "Tartak",
+    "description": "Przecina pnie na deski. Musi stać w lesie.",
+    "icon": "assets/map_icons/sawmill.png",
+    "cost": { "gold": 100 },
+    "allowedTerrain": ["forest"]
+  },
+  "mine": {
+    "name": "Kopalnia",
+    "description": "Wydobywa cenne kruszce z twardej skały.",
+    "icon": "assets/map_icons/mine.png",
+    "cost": { "gold": 200, "wood_birch": 50 },
+    "allowedTerrain": ["rock", "mountains"]
+  },
+  "herbalist_hut": {
+    "name": "Chata Zielarki",
+    "description": "Pozwala zbierać zioła. Musi stać w lesie lub na bagnach.",
+    "icon": "assets/map_icons/herbalist_hut.png",
+    "cost": { "gold": 150, "wood_birch": 50 },
+    "allowedTerrain": ["forest", "swamp"]
+  },
+  "hunter_hut": {
+    "name": "Chata Myśliwego",
+    "description": "Dostarcza mięsa i skór z leśnych bestii.",
+    "icon": "assets/map_icons/hunter_hut.png",
+    "cost": { "gold": 150, "wood_birch": 50 },
+    "allowedTerrain": ["forest"]
+  },
+  "watchtower": {
+    "name": "Wieża Strażnicza",
+    "description": "Zwiększa pole widzenia i bezpieczeństwo.",
+    "icon": "assets/map_icons/watchtower.png",
+    "cost": { "gold": 150, "wood_birch": 50 },
+    "allowedTerrain": ["any"]
+  },
+  "shrine": {
+    "name": "Kaplica",
+    "description": "Miejsce kultu ku czci dawnych bogów.",
+    "icon": "assets/map_icons/shrine.png",
+    "cost": { "gold": 300, "stone": 200 },
+    "allowedTerrain": ["any"]
+  },
+  "fields": {
+    "name": "Pola Uprawne",
+    "description": "Zapewniają stały dopływ żywności. Wymagają żyznej ziemi.",
+    "icon": "assets/map_icons/fields.png",
+    "cost": { "gold": 150, "wood_birch": 50 },
+    "allowedTerrain": ["meadow", "grassland"]
+  },
+  "fisher_hut": {
+    "name": "Chata Rybaka",
+    "description": "Wyciąga dary z głębin. Musi stać nad wodą.",
+    "icon": "assets/map_icons/fisher_hut.png",
+    "cost": { "gold": 100, "wood_birch": 50 },
+    "allowedTerrain": ["water"]
+  }
+}

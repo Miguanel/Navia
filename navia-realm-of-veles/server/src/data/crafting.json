@@ -1,0 +1,17 @@
+{
+  "blueprints": {
+    "sword": { "name": "Miecz", "baseDmg": 0, "difficulty": 0, "cost": { "primary": 3, "secondary": 1 } },
+    "axe": { "name": "Topór", "baseDmg": 1, "difficulty": 0, "cost": { "primary": 2, "secondary": 2 } },
+    "bow": { "name": "Łuk", "baseDmg": -1, "difficulty": 15, "cost": { "primary": 1, "secondary": 4 } },
+    "spear": { "name": "Włócznia", "baseDmg": 0, "difficulty": 5, "cost": { "primary": 1, "secondary": 3 } }
+  },
+  "primaryMaterials": {
+    "stone": { "prefix": "Kamienny", "dmgBonus": 2, "difficulty": 0, "baseRarity": "Zwykły" },
+    "iron": { "prefix": "Żelazny", "dmgBonus": 6, "difficulty": 20, "baseRarity": "Dobry" }
+  },
+  "secondaryMaterials": {
+    "wood_birch": { "traitName": "Lekki (Brzoza)", "dmgBonus": 0, "difficulty": 0, "rarityUpgrade": false },
+    "wood_ash": { "traitName": "Giętki (Jesion)", "dmgBonus": 1, "difficulty": 5, "rarityUpgrade": false },
+    "wood_oak": { "traitName": "Ciężki (Dąb)", "dmgBonus": 2, "difficulty": 10, "rarityUpgrade": true }
+  }
+}

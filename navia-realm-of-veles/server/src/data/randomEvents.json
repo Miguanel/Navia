@@ -1,0 +1,180 @@
+[
+  {
+    "id": "merchant_oak",
+    "title": "Złoto z Południa",
+    "description": "Bogaty kupiec z południa zatrzymał się w Grodzie. Proponuje 200 sztuk złota za 50 kłód Dębu z Twojego magazynu.",
+    "icon": "⚖️",
+    "choices": [
+      {
+        "id": "accept",
+        "label": "Zgoda! (Sprzedaj)",
+        "costText": "Koszt: 50 Dębu",
+        "cost": { "wood_oak": 50 },
+        "effects": { "gold": 200 }
+      },
+      {
+        "id": "decline",
+        "label": "Zostawiamy dla siebie",
+        "costText": "Brak kosztów"
+      }
+    ]
+  },
+  {
+    "id": "cursed_shrine_event",
+    "excludeFlag": "shrine_resolved",
+    "title": "Mroczny Chram",
+    "description": "Twoi drwale odkryli w głębi puszczy prastary chram Welesa. Powietrze jest gęste od magii. Bogowie żądają ofiary z Brzozy, inaczej ześlą plagi na nasze ziemie.",
+    "icon": "💀",
+    "choices": [
+      {
+        "id": "sacrifice",
+        "label": "Złóż Ofiarę (Spokój)",
+        "costText": "Koszt: 100 Brzozy",
+        "cost": { "wood_birch": 100 },
+        "setFlag": "shrine_resolved",
+        "effects": { "herb_celandine": 50 }
+      },
+      {
+        "id": "refuse",
+        "label": "To bajki! Ignoruj.",
+        "costText": "Rozgniewasz bogów",
+        "setFlag": "gods_angered"
+      }
+    ]
+  },
+  {
+    "id": "gods_revenge",
+    "requiresFlag": "gods_angered",
+    "excludeFlag": "wraith_spawned",
+    "title": "Zemsta Bogów!",
+    "description": "Zignorowałeś żądania prastarego Chramu. Na traktach pojawiła się przerażająca Zmara, która atakuje wozy i spowalnia zaopatrzenie!",
+    "icon": "👻",
+    "effectsText": "-20% Logistyki i Produkcji!",
+    "choices": [
+      {
+        "id": "accept_doom",
+        "label": "Niech to szlag...",
+        "costText": "Zmara zagości w Grodzie",
+        "setFlag": "wraith_spawned",
+        "addThreat": {
+          "id": "wraith_threat_1",
+          "name": "Leśna Zmara",
+          "desc": "Klątwa rozzłoszczonych bogów. Kradnie surowce z Karawan.",
+          "debuffText": "-20% Prędkości",
+          "icon": "👻",
+          "bountyCost": 300
+        }
+      }
+    ]
+  },
+  {
+    "id": "wandering_volkhv",
+    "title": "Siwy Wołchw",
+    "description": "Do bram Grodu zapukał stary, ślepy mędrzec. Prosi o gościnę i strawę. W zamian obiecuje pobłogosławić Twoje pola i lasy swoją wiedzą.",
+    "icon": "🧙‍♂️",
+    "choices": [
+      {
+        "id": "welcome",
+        "label": "Gość w dom, Bóg w dom",
+        "costText": "Koszt: 30 Żywności",
+        "cost": { "food": 30 },
+        "effects": { "herb_wolfsbane": 10 },
+        "setFlag": "volkhv_blessing"
+      },
+      {
+        "id": "refuse",
+        "label": "Nie mamy miejsca dla żebraków",
+        "costText": "Wypędź go",
+        "setFlag": "volkhv_cursed"
+      }
+    ]
+  },
+  {
+    "id": "volkhv_curse_effect",
+    "requiresFlag": "volkhv_cursed",
+    "excludeFlag": "curse_active",
+    "title": "Zepsuta Krew",
+    "description": "Wypędzony Wołchw splunął pod nogi strażników. Od tamtej pory mięso w spichlerzach gnije szybciej, a ludzie chorują.",
+    "icon": "🥀",
+    "effectsText": "Masowa utrata zapasów!",
+    "choices": [
+      {
+        "id": "endure",
+        "label": "Musimy to przetrwać",
+        "costText": "Utrata 50 Żywności",
+        "cost": { "food": 50 },
+        "setFlag": "curse_active"
+      }
+    ]
+  },
+  {
+    "id": "lost_expedition_discovery",
+    "title": "Echa Przeszłości",
+    "description": "Zwiadowcy znaleźli szczątki dawnej wyprawy. W zbutwiałych sakwach wciąż lśnią kruszce, ale trupie czaszki ostrzegają przed chciwością.",
+    "icon": "🦴",
+    "choices": [
+      {
+        "id": "loot",
+        "label": "Zabierz wszystko (Ryzyko)",
+        "costText": "Zyskaj: 300 Złota",
+        "effects": { "gold": 300 },
+        "setFlag": "ghosts_unrest"
+      },
+      {
+        "id": "bury",
+        "label": "Pochowaj ich godnie",
+        "costText": "Zyskaj szacunek przodków",
+        "effects": { "herb_celandine": 20 }
+      }
+    ]
+  },
+  {
+    "id": "ghost_haunting",
+    "requiresFlag": "ghosts_unrest",
+    "title": "Niespokojne Duchy",
+    "description": "Zrabowane złoto było przeklęte. W nocy w Grodzie słychać jęki, a drwale boją się wchodzić do lasu. Wydaj złoto na egzorcyzmy albo cierp.",
+    "icon": "🌫️",
+    "choices": [
+      {
+        "id": "exorcism",
+        "label": "Zatrudnij żerców",
+        "costText": "Koszt: 150 Złota",
+        "cost": { "gold": 150 },
+        "removeFlag": "ghosts_unrest"
+      },
+      {
+        "id": "ignore",
+        "label": "To tylko wiatr...",
+        "costText": "Produkcja drewna spada",
+        "addThreat": {
+            "id": "ghost_threat",
+            "name": "Duchy Wyklęte",
+            "icon": "💀",
+            "debuffText": "-30% Produkcji drewna",
+            "bountyCost": 500
+        }
+      }
+    ]
+  },
+  {
+    "id": "leshy_demand",
+    "title": "Głos Puszczy",
+    "description": "W Twoich lasach pojawiły się dziwne znaki. To Leszy, Pan Boru, domaga się zaprzestania wyrębu najstarszych dębów. Jeśli go posłuchasz, las będzie bezpieczniejszy.",
+    "icon": "🦌",
+    "choices": [
+      {
+        "id": "obey",
+        "label": "Słuchaj Puszczy",
+        "costText": "Ogranicz wyrąb (Mniej drewna)",
+        "effects": { "herb_wolfsbane": 15 },
+        "setFlag": "forest_protection"
+      },
+      {
+        "id": "ignore",
+        "label": "Potrzebujemy surowców!",
+        "costText": "Wyrąb trwa dalej",
+        "setFlag": "leshy_anger"
+      }
+    ]
+  }
+]

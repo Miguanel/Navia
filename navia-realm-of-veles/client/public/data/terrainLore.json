@@ -1,0 +1,89 @@
+{
+  "descriptions": {
+    "forest": [
+      { "max": 5000, "text": "Gęste młodniki, w których licho śpi pośród cierni, a wilki zakładają leża." },
+      { "max": 50000, "text": "Mroczny bór. Korony drzew zasłaniają niebo, a wiatr szepcze o zapomnianych bogach." },
+      { "max": 999999999, "text": "Prastara puszcza, niepodzielne królestwo Leszego. Każdy krok tutaj to igranie ze śmiercią." }
+    ],
+    "water": [
+      { "max": 1000, "text": "Bystry strumień, w którym Rusałki obmywają swe blade oblicza." },
+      { "max": 20000, "text": "Głęboka toń. Woda jest czarna i zimna, a na dnie czai się stary Wodnik." },
+      { "max": 999999999, "text": "Bezkresna woda, zdradliwa niczym gniew Peruna. Fale pochłonęły tu już niejedną łódź." }
+    ],
+    "swamp": [
+      { "max": 10000, "text": "Zdradliwe trzęsawisko. Krok w złą stronę oznacza powolną śmierć w cuchnącym mule." },
+      { "max": 999999999, "text": "Zgniłe bagna, domostwo Kikimory i Błotników. Powietrze gęste jest od trujących oparów i chorób." }
+    ],
+    "meadow": [
+      { "max": 20000, "text": "Wysokie trawy falujące na wietrze. Urokliwe miejsce, póki słońce nie stanie w zenicie." },
+      { "max": 999999999, "text": "Szerokie stepy i łąki. Kto zaśnie tu w południe, tego dusze zabierze bezlitosna Południca." }
+    ],
+    "rock": [
+      { "max": 999999999, "text": "Surowe, ostre skały. W ich szczelinach gnieżdżą się skrzydlate Żmije, a na szczytach zawodzą Płanetnicy." }
+    ],
+    "sand": [
+      { "max": 999999999, "text": "Jałowe piaski i wydmy. Wiatr niesie tu tylko piach w oczy i echa pieśni dawno zmarłych żeglarzy." }
+    ],
+    "shrine": [
+      { "max": 999999999, "text": "Miejsce Mocy. Zasłona między światem żywych i Nawią jest tu cienka jak pajęczyna." }
+    ],
+    "special": {
+      "tomb": "Prastary Kurhan. Ziemia wciąż pamięta krew wodzów, a nocą słychać zgrzytanie zębów Strzygi.",
+      "spring": "Święte Źródło, dar bogini Mokoszy. Woda z niego goi najcięższe rany i zmywa klątwy.",
+      "stone": "Zaklęty Głaz. Starożytne runy pulsują słabym blaskiem. Czas płynie przy nim inaczej.",
+      "ruins": "Zgliszcza i ruiny dawnej osady. Bieda i Licho uwiły tu sobie przytulne gniazdo.",
+      "artwork": "Zapomniany posąg bóstwa o wielu twarzach. Ktoś wciąż składa przed nim ofiary ze zwierząt."
+    },
+    "default": "Ziemia niczyja, dzika i nieujarzmiona, czekająca na twardą rękę Władycy."
+  },
+  "events": {
+    "forest": [
+      { "id": "gather", "name": "Ścinka dębów i zbiór chrustu", "chance": 45, "winChance": 100 },
+      { "id": "gather_rare", "name": "Odnalezienie dzikich uli (Miód)", "chance": 15, "winChance": 100 },
+      { "id": "combat", "name": "Wataha wygłodniałych wilków", "chance": 25, "winChance": 40 },
+      { "id": "combat_boss", "name": "Gniew Borowego (Leszy)", "chance": 10, "winChance": 15 },
+      { "id": "loot", "name": "Szczątki rozszarpanego kupca", "chance": 5, "winChance": 100 }
+    ],
+    "water": [
+      { "id": "gather", "name": "Zarzucenie sieci (Ryby)", "chance": 50, "winChance": 100 },
+      { "id": "combat", "name": "Topielce wciągają pod wodę!", "chance": 30, "winChance": 35 },
+      { "id": "combat_boss", "name": "Zasadzka Wodnika", "chance": 10, "winChance": 20 },
+      { "id": "loot", "name": "Porzucona, dryfująca łódź", "chance": 10, "winChance": 100 }
+    ],
+    "swamp": [
+      { "id": "gather", "name": "Zbiór rzadkich ziół bagiennych", "chance": 30, "winChance": 100 },
+      { "id": "combat", "name": "Atak plujących jadem Ropuch", "chance": 35, "winChance": 40 },
+      { "id": "combat_boss", "name": "Mordercza Kikimora", "chance": 20, "winChance": 15 },
+      { "id": "loot", "name": "Zatopiona skrzynia w mule", "chance": 15, "winChance": 100 }
+    ],
+    "meadow": [
+      { "id": "gather", "name": "Zbiór owoców i polnych kwiatów", "chance": 55, "winChance": 100 },
+      { "id": "combat", "name": "Rój wściekłych szerszeni", "chance": 20, "winChance": 60 },
+      { "id": "combat_boss", "name": "Morderczy taniec Południcy!", "chance": 15, "winChance": 20 },
+      { "id": "loot", "name": "Zapomniany kurhanik polny", "chance": 10, "winChance": 100 }
+    ],
+    "rock": [
+      { "id": "gather", "name": "Wydobycie rudy żelaza", "chance": 40, "winChance": 100 },
+      { "id": "combat", "name": "Osuwisko wywołane przez trolle", "chance": 30, "winChance": 50 },
+      { "id": "combat_boss", "name": "Gniazdo skrzydlatego Żmija", "chance": 20, "winChance": 10 },
+      { "id": "loot", "name": "Żyła cennego kruszcu", "chance": 10, "winChance": 100 }
+    ],
+    "sand": [
+      { "id": "gather", "name": "Przesiewanie piasku (Bursztyny)", "chance": 40, "winChance": 100 },
+      { "id": "combat", "name": "Ukąszenia piaskowych żmij", "chance": 30, "winChance": 45 },
+      { "id": "combat_boss", "name": "Spotkanie z Lichem", "chance": 20, "winChance": 15 },
+      { "id": "loot", "name": "Wyschnięte truchło z mieszkiem", "chance": 10, "winChance": 100 }
+    ],
+    "shrine": [
+      { "id": "magic", "name": "Modlitwa - Błogosławieństwo Dziadów", "chance": 40, "winChance": 100 },
+      { "id": "magic_vision", "name": "Wizja przyszłości od Prastarych", "chance": 15, "winChance": 100 },
+      { "id": "combat", "name": "Przebudzenie Zmory!", "chance": 30, "winChance": 20 },
+      { "id": "combat_boss", "name": "Walka z potężną Strzygą", "chance": 15, "winChance": 5 }
+    ]
+  },
+  "magic_modifiers": {
+    "suppression": 25,
+    "minChance": 5,
+    "extraEvent": { "id": "combat_magic_demon", "name": "Manifestacja Rogatego Biesa", "chance": 45, "winChance": 5, "magic": true }
+  }
+}

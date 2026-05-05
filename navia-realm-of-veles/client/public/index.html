@@ -1,0 +1,1210 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Navia: Władca Czyżowic</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+    <style>
+        /* --- BAZOWE STYLE I MAPA --- */
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #0a0a0f; color: white; font-family: 'Cinzel', serif; }
+        #map { width: 100%; height: 100vh; z-index: 1; }
+        .hidden-display { display: none !important; }
+
+        /* --- HUD MAPY --- */
+        #hud-top { position: absolute; top: 0; left: 0; width: 100%; z-index: 1000; padding: 10px; box-sizing: border-box; display: flex; gap: 10px; pointer-events: none; }
+        .treasury-panel { background: rgba(20, 20, 25, 0.9); border: 1px solid #d4af37; border-radius: 6px; padding: 10px; pointer-events: auto; flex: 1; box-shadow: 0 4px 15px rgba(0,0,0,0.7); }
+        .resource-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; font-size: 14px;}
+        .gold-val { color: #d4af37; font-weight: bold; font-size: 16px;}
+
+        #hud-bottom { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 1000; }
+        .action-btn { background: rgba(20, 20, 25, 0.9); border: 1px solid #d4af37; color: white; padding: 10px 20px; font-family: 'Cinzel', serif; font-size: 16px; border-radius: 8px; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.9); }
+        .action-btn:hover { background: #d4af37; color: black; }
+
+        /* --- MENU BUDOWY (MAKRO) --- */
+        #build-menu { position: absolute; bottom: -100%; left: 0; width: 100%; background: rgba(15, 15, 19, 0.95); border-top: 2px solid #d4af37; z-index: 2000; transition: bottom 0.3s; padding: 20px; box-sizing: border-box; }
+        #build-menu.active { bottom: 0; }
+        .menu-header { display: flex; justify-content: space-between; border-bottom: 1px solid #333; margin-bottom: 15px; padding-bottom: 10px; }
+        .menu-header h2 { margin: 0; color: #d4af37; }
+        .close-btn { background: none; border: none; color: #8b0000; font-size: 24px; cursor: pointer; }
+
+
+        #build-mode-indicator { position: absolute; top: 80px; left: 50%; transform: translateX(-50%); background: rgba(139, 0, 0, 0.9); border: 1px solid #ff4444; color: white; padding: 10px 20px; border-radius: 20px; z-index: 1000; display: flex; gap: 15px; align-items: center; }
+
+        /* --- EKRAN MIASTA I PLACÓWEK --- */
+        #city-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #0a0a0f; z-index: 3000; display: flex; flex-direction: column; }
+        .city-header { display: flex; justify-content: space-between; padding: 15px 20px; background: #111; border-bottom: 2px solid #d4af37; }
+        .city-header h2 { margin: 0; color: #d4af37; }
+        .exit-city-btn { background: #8b0000; color: white; border: 1px solid #ff4444; padding: 8px 15px; font-family: 'Cinzel', serif; cursor: pointer; border-radius: 4px; }
+
+        .city-landscape { flex: 1; background: linear-gradient(to bottom, #1a1a24, #0a0a0f); padding: 20px; display: grid; grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(3, 1fr); gap: 15px; border-bottom: 2px solid #333; overflow-y: auto;}
+
+        #plot-alchemist { grid-column: 1; grid-row: 1; }
+        #plot-townhall { grid-column: 2 / span 2; grid-row: 1; border-color: #d4af37; background: rgba(50, 40, 20, 0.9); color: white; cursor: default; }
+        #plot-townhall .plot-icon { opacity: 1; filter: grayscale(0%); font-size: 50px;}
+        #plot-townhall:hover { background: rgba(50, 40, 20, 0.9); box-shadow: none; }
+        #plot-stables { grid-column: 4; grid-row: 1; }
+        #plot-tavern { grid-column: 1; grid-row: 2; }
+        #plot-blacksmith { grid-column: 2; grid-row: 2; }
+        #plot-barracks { grid-column: 3; grid-row: 2; }
+        #plot-market { grid-column: 4; grid-row: 2; }
+        #plot-granary { grid-column: 1; grid-row: 3; }
+        #plot-walls { grid-column: 2 / span 2; grid-row: 3; }
+        #plot-capitol { grid-column: 4; grid-row: 3; }
+
+        .city-build-menu { background: #111; padding: 20px; }
+        .city-build-menu h3 { color: #d4af37; margin-top: 0; border-bottom: 1px solid #333; padding-bottom: 10px; }
+        .upgrades-list { display: flex; gap: 15px; overflow-x: auto; padding-bottom: 10px; }
+        .upgrade-item { flex: 0 0 140px; background: #222; border: 1px solid #d4af37; border-radius: 8px; padding: 10px; text-align: center; cursor: pointer; transition: 0.2s; }
+        .upgrade-item:hover { background: #333; }
+        .upgrade-item.built-btn { background: #0f380f; border-color: #32cd32; opacity: 0.5; pointer-events: none; }
+
+        .scene-wrapper {
+            flex-grow: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #050508;
+            overflow: hidden;
+            width: 100%;
+            min-height: 0;
+        }
+
+        .homm3-town-scene {
+            position: relative;
+            width: 100%;
+            max-width: 100%;
+            max-height: 100%;
+            aspect-ratio: 16 / 9;
+            background-image: url('assets/map_icons/town_bg.png');
+            background-size: 100% 100%;
+            background-repeat: no-repeat;
+            background-position: center;
+            border: 2px solid #222;
+            box-shadow: 0 0 30px rgba(0,0,0,0.8);
+        }
+
+        .town-building-sprite {
+            position: absolute;
+            display: none;
+            cursor: pointer;
+            transform-origin: bottom center;
+            transform: translate(-50%, -100%) scale(var(--scale, 1));
+            transition: filter 0.3s, transform 0.2s;
+            filter: sepia(30%) contrast(110%) drop-shadow(0px 10px 20px rgba(0,0,0,0.8));
+        }
+
+        .town-building-sprite:hover {
+            filter: sepia(0%) contrast(130%) drop-shadow(0px 0px 30px rgba(212, 175, 55, 0.6));
+            transform: translate(-50%, -100%) scale(calc(var(--scale, 1) + 0.05));
+            z-index: 50 !important;
+        }
+
+        #sprite-walls { top: 100%; left: 50%; width: 100%; z-index: 1; pointer-events: none; --scale: 1; }
+        #sprite-granary { top: 66%; left: 87%; width: 22%; z-index: 3; --scale: 0.9; }
+        #sprite-alchemist { top: 50%; left: 77%; width: 13%; z-index: 3; --scale: 0.85; }
+        #sprite-capitol { top: 43%; left: 54%; width: 16%; z-index: 4; --scale: 0.95; }
+        #sprite-barracks { top: 58%; left: 38%; width: 21%; z-index: 4; --scale: 1; }
+        #sprite-blacksmith { top: 47%; left: 13%; width: 13%; z-index: 5; --scale: 1; }
+        #sprite-townhall { top: 70%; left: 39%; width: 27%; z-index: 6; --scale: 1.1; filter: drop-shadow(0px 15px 20px rgba(0,0,0,0.9)); display: block !important; }
+        #sprite-tavern { top: 80%; left: 22%; width: 26%; z-index: 7; --scale: 1.15; }
+        #sprite-market { top: 90%; left: 57%; width: 29%; z-index: 7; --scale: 1.15; }
+        #sprite-stables { top: 58%; left: 62%; width: 19%; z-index: 8; --scale: 1.2; }
+
+        .n-modal-msg {
+            position: relative;
+            background-image: url('assets/ui/msg_frame.png');
+            background-size: 100% 100%;
+            background-position: center;
+            background-repeat: no-repeat;
+            border: none;
+            background-color: transparent;
+            color: #3d2b1f;
+            padding: 70px 50px 50px 50px !important;
+            filter: drop-shadow(0 0 25px rgba(0,0,0,0.8));
+        }
+
+        .n-modal-ui {
+            position: relative;
+            background-image: url('assets/ui/ui_frame.png');
+            background-size: 100% 100%;
+            background-position: center;
+            background-repeat: no-repeat;
+            border: none;
+            background-color: transparent;
+            padding: 120px 80px 80px 80px !important;
+        }
+
+        .ui-header-ornament { background: url('assets/ui/header_ornament.png') no-repeat center; background-size: contain; height: 60px; margin-top: -20px; }
+
+        .res-group { position: relative; cursor: pointer; padding: 5px 10px; border-radius: 4px; transition: background 0.2s; }
+        .res-group:hover { background: rgba(212, 175, 55, 0.1); }
+        .res-dropdown { position: absolute; top: 100%; left: 0; background: #111; border: 1px solid #d4af37; border-radius: 4px; padding: 10px; width: max-content; min-width: 170px; z-index: 5000; box-shadow: 0 10px 25px rgba(0,0,0,0.9); display: flex; flex-direction: column; gap: 8px; font-size: 12px; pointer-events: none; opacity: 0; transition: opacity 0.2s; }
+        .res-group:hover .res-dropdown { pointer-events: auto; opacity: 1; }
+        .res-item-row { display: flex; justify-content: space-between; border-bottom: 1px dashed #333; padding-bottom: 4px; }
+
+        .city-slide-panel {
+            position: absolute;
+            bottom: 50px;
+            left: 0;
+            width: 100%;
+            height: 35vh;
+            background: rgba(10, 10, 15, 0.95);
+            border-top: 2px solid #d4af37;
+            transform: translateY(120%);
+            transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+            z-index: 3500;
+            padding: 20px;
+            box-sizing: border-box;
+            box-shadow: 0 -10px 30px rgba(0,0,0,0.8);
+            overflow-y: auto;
+        }
+        .city-slide-panel.active { transform: translateY(0); }
+
+        #city-bottom-nav { position: absolute; bottom: 0; left: 0; width: 100%; height: 50px; background: #0a0a0f; border-top: 2px solid #d4af37; display: flex; z-index: 4000; }
+        .city-tab-btn { flex: 1; background: #111; color: #aaa; border: none; border-right: 1px solid #333; font-family: 'Cinzel', serif; font-size: 15px; font-weight: bold; text-transform: uppercase; cursor: pointer; transition: 0.3s; }
+        .city-tab-btn:hover, .city-tab-btn.active-tab { background: #d4af37; color: #000; }
+
+
+        .toast-msg {
+            min-width: 280px;
+            padding: 12px 20px;
+            border-radius: 6px;
+            color: white;
+            font-family: 'Cinzel', serif;
+            font-size: 13px;
+            font-weight: bold;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.8);
+            opacity: 0;
+            transform: translateX(100%);
+            animation: slideIn 0.3s forwards, fadeOut 0.4s forwards 4.6s;
+            pointer-events: auto;
+            border-left: 4px solid;
+            background: rgba(20, 20, 25, 0.95);
+            backdrop-filter: blur(4px);
+        }
+        .toast-success { border-left-color: #32cd32; }
+        .toast-error { border-left-color: #ff4444; }
+        .toast-info { border-left-color: #4682b4; }
+
+        @keyframes slideIn { to { opacity: 1; transform: translateX(0); } }
+        @keyframes fadeOut { to { opacity: 0; transform: translateY(-10px); } }
+
+        /* --- NOWOŚĆ: INTERFEJS WARSZTATU CIEŚLI (BOCZNY PANEL) --- */
+        #carpenters-btn {
+            position: absolute;
+            right: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(20, 15, 10, 0.95);
+            border: 2px solid #8b4513;
+            border-right: none;
+            color: #d4af37;
+            padding: 20px 10px;
+            cursor: pointer;
+            z-index: 4000;
+            border-radius: 8px 0 0 8px;
+            font-family: 'Cinzel', serif;
+            font-weight: bold;
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+            box-shadow: -2px 0 10px rgba(0,0,0,0.8);
+            transition: 0.3s;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+        #carpenters-btn:hover { background: #8b4513; color: white; border-color: #d4af37; box-shadow: -2px 0 15px rgba(212, 175, 55, 0.4); }
+
+        #carpenters-panel {
+            position: absolute; /* Wewnątrz #city-screen */
+            right: 0;
+            top: 0;
+            width: 320px;
+            height: calc(100% - 50px); /* Odejmujemy wysokość dolnego paska nawigacji */
+            background: rgba(10, 10, 15, 0.98);
+            border-left: 2px solid #8b4513;
+            z-index: 4100;
+            transform: translateX(100%);
+            transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+            display: flex;
+            flex-direction: column;
+            box-shadow: -10px 0 30px rgba(0,0,0,0.9);
+        }
+        #carpenters-panel.active { transform: translateX(0); }
+
+        .carpenter-header { padding: 20px; border-bottom: 2px dashed #8b4513; text-align: center; position: relative; background: #0a0a0f; }
+        .carpenter-close { position: absolute; top: 15px; left: 15px; background: none; border: none; color: #ff4444; font-size: 26px; cursor: pointer; transition: 0.2s; }
+        .carpenter-close:hover { color: #fff; transform: scale(1.2); }
+        .carpenter-list { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 15px; }
+
+        .carpenter-item { background: rgba(20, 15, 10, 0.8); border: 1px solid #4a3623; padding: 12px; border-radius: 6px; box-shadow: inset 0 0 10px rgba(0,0,0,0.8); }
+        .health-bar-bg { width: 100%; height: 12px; background: #111; border: 1px solid #000; border-radius: 6px; margin-top: 8px; overflow: hidden; position: relative; box-shadow: inset 0 2px 4px rgba(0,0,0,0.8); }
+        .health-bar-fill { height: 100%; background: #32cd32; width: 100%; transition: width 0.4s, background-color 0.4s; }
+        .health-bar-critical { background: #ff4444; }
+        .health-bar-warning { background: #ffaa00; }
+        /* ------------------------------------------------------------- */
+
+        /* --- NOWOŚĆ: PANEL ZAGROŻEŃ (LEWA STRONA) --- */
+        #threats-btn {
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%) rotate(180deg); /* Odwracamy tekst, by pasował do lewej krawędzi */
+            background: rgba(20, 10, 10, 0.95);
+            border: 2px solid #8b0000;
+            border-left: none;
+            color: #ff4444;
+            padding: 20px 10px;
+            cursor: pointer;
+            z-index: 4000;
+            border-radius: 0 8px 8px 0;
+            font-family: 'Cinzel', serif;
+            font-weight: bold;
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.8);
+            transition: 0.3s;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+        #threats-btn:hover { background: #8b0000; color: white; border-color: #ff4444; box-shadow: 2px 0 15px rgba(255, 68, 68, 0.4); }
+
+        #threats-panel {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 340px;
+            height: calc(100% - 50px);
+            background: rgba(15, 5, 5, 0.98);
+            border-right: 2px solid #8b0000;
+            z-index: 4100;
+            transform: translateX(-100%); /* Ukryte za lewą krawędzią */
+            transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+            display: flex;
+            flex-direction: column;
+            box-shadow: 10px 0 30px rgba(0,0,0,0.9);
+        }
+        #threats-panel.active { transform: translateX(0); }
+
+        .threat-header { padding: 20px; border-bottom: 2px dashed #8b0000; text-align: center; position: relative; background: #0a0a0f; }
+        .threat-close { position: absolute; top: 15px; right: 15px; background: none; border: none; color: #ff4444; font-size: 26px; cursor: pointer; transition: 0.2s; }
+        .threat-close:hover { color: #fff; transform: scale(1.2); }
+
+        /* Zmień tło w legendzie na bardziej pergaminowe lub mroczne */
+        background: linear-gradient(to bottom, rgba(20,15,10,0.98), rgba(40,30,20,0.95));
+        border: 2px solid #8b4513;
+        scrollbar-width: thin;
+        scrollbar-color: #5a4529 transparent;
+
+        /* --- ANIMACJA AURY MAGICZNEJ --- */
+
+        /* --- NOWA ANIMACJA AURY MAGICZNEJ --- */
+        .magic-aura {
+            stroke: none !important; /* CAŁKOWICIE USUWA KRAWĘDŹ */
+            filter: blur(25px); /* Tworzy efekt miękkiego, rozmytego gradientu na zewnątrz */
+            animation: auraPulse 4s infinite alternate ease-in-out;
+            pointer-events: none; /* Żeby aura nie blokowała klikania w mapę pod nią */
+        }
+
+        @keyframes auraPulse {
+            0% {
+                fill-opacity: 0.15;
+                filter: blur(20px);
+            }
+            100% {
+                fill-opacity: 0.5;
+                filter: blur(35px); /* W szczycie pulsu aura rozmywa się jeszcze bardziej */
+            }
+        }
+
+        /* --- WIZUALNY EFEKT KLĄTWY (ZMARA) --- */
+        #map.wraith-curse {
+            transition: box-shadow 1s ease-in-out;
+            /* Pulsujący, mroczny fiolet wokół krawędzi mapy */
+            animation: wraithPulse 4s infinite ease-in-out;
+        }
+
+        @keyframes wraithPulse {
+            0% {
+                box-shadow: inset 0 0 50px rgba(75, 0, 130, 0.4); /* Fioletowy bies */
+            }
+            50% {
+                box-shadow: inset 0 0 150px rgba(0, 0, 0, 0.8), /* Głęboka czerń */
+                inset 0 0 80px rgba(75, 0, 130, 0.6);
+            }
+            100% {
+                box-shadow: inset 0 0 50px rgba(75, 0, 130, 0.4);
+            }
+        }
+
+        .hidden-display {
+            display: none !important;
+        }
+        /* --- KARTY BUDYNKÓW (ROZKAZY KRÓLEWSKIE) --- */
+        .build-options { display: flex; gap: 15px; overflow-x: auto; padding-bottom: 15px; align-items: stretch; }
+
+        .build-card {
+            flex: 0 0 150px;
+            background: linear-gradient(145deg, #1a1a24, #0f0f13);
+            border: 1px solid #5a4529;
+            border-radius: 8px;
+            padding: 12px 10px;
+            text-align: center;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.6);
+        }
+
+        .build-card:hover {
+            border-color: #d4af37;
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(212, 175, 55, 0.2);
+        }
+
+        .build-card .build-icon { width: 50px; height: 50px; object-fit: contain; filter: drop-shadow(0px 5px 5px rgba(0,0,0,0.8)); margin: 0 auto; transition: transform 0.2s; }
+        .build-card:hover .build-icon { transform: scale(1.1); }
+
+        .build-card h3 { margin: 0; font-size: 13px; color: #f0e6d2; letter-spacing: 1px; }
+
+        /* Etykiety terenów */
+        .card-terrain { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; }
+        .terrain-badge { padding: 3px 6px; border-radius: 4px; font-size: 9px; text-transform: uppercase; font-weight: bold; box-shadow: inset 0 0 5px rgba(0,0,0,0.5); }
+
+        /* Etykiety kosztów */
+        .card-cost { display: flex; flex-wrap: wrap; justify-content: center; gap: 5px; margin-top: auto; }
+        .cost-badge { background: rgba(0,0,0,0.8); padding: 4px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; border: 1px solid #333; }
+        .cost-badge.gold { color: #d4af37; border-color: #8b6508; }
+        .cost-badge.wood { color: #d2b48c; border-color: #8b4513; }
+        .cost-badge.stone { color: #aaa; border-color: #555; }
+    </style>
+</head>
+<body>
+
+<div id="world-scene">
+    <div id="hud-top">
+        <div class="treasury-panel">
+            <div style="color: #d4af37; font-size: 12px; font-weight: bold;">Skarbiec Królestwa</div>
+            <div class="resource-grid" style="grid-template-columns: repeat(5, 1fr);">
+                <div>💰 <span id="res-gold" class="gold-val">---</span></div>
+                <div title="Drewna:">🌲 <span id="res-wood">0</span></div>
+                <div title="Zioła:">🌿 <span id="res-herbs">0</span></div>
+                <div title="Surowce stałe:">⛏️ <span id="res-stone">0</span></div>
+                <div title="Uzbrojenie:">🗡️ <span id="res-weapons" style="color:#aaa;">0</span></div>
+            </div>
+        </div>
+
+        <div id="hud-time-panel"
+             style="background: rgba(10, 10, 15, 0.95); border: 1px solid #4682b4; border-radius: 6px; padding: 10px 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; color: #fff; font-family: 'Cinzel', serif; font-size: 14px; min-width: 200px; transition: 1s;">
+            <div style="text-align: right; margin-right: 15px;">
+                <div id="hud-season-text" style="color: #d4af37; font-weight: bold; margin-bottom: 2px;">
+                    Oczekiwanie...
+                </div>
+                <div id="hud-day-text" style="color: #aaa; font-size: 11px;">Budzenie słońca</div>
+            </div>
+            <div id="hud-time-icon" style="font-size: 35px; text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);">⏳</div>
+            <div id="hud-clock" style="font-size: 24px; font-weight: bold; margin-left: 15px; letter-spacing: 2px;">
+                --:--
+            </div>
+            <button onclick="window.toggleScoutPanel()"
+                    style="background: none; border: none; color: #ffaa00; cursor: pointer; font-size: 20px; margin-left: 15px; padding: 5px; transition: transform 0.2s; z-index: 5001; position: relative; pointer-events: auto;"
+                    onmouseover="this.style.transform='scale(1.2)';"
+                    onmouseout="this.style.transform='scale(1.0)';"
+                    title="Otwórz Zwiad Terenu">
+                👁️
+            </button>
+        </div>
+    </div>
+
+    <div id="build-mode-indicator" class="hidden-display">Wybierz miejsce...
+        <button onclick="cancelBuildMode()">Anuluj</button>
+    </div>
+
+    <div id="map"></div>
+
+    <div id="hud-bottom">
+        <button class="action-btn" onclick="openBuildMenu()">🗺️<span>Rozkazy Królewskie</span></button>
+    </div>
+
+    <div id="build-menu">
+    <div class="menu-header">
+        <h2>Architekci</h2>
+        <button class="close-btn" onclick="closeBuildMenu()">×</button>
+    </div>
+
+    <div class="build-options">
+
+    </div>
+</div>
+</div>
+
+<div id="building-screen" class="hidden-display"
+     style="position:fixed; top:0; left:0; width:100%; height:100%; background:#0a0a0f; z-index:3000; display:flex; flex-direction:column; color:#fff;">
+    <div class="city-header">
+        <h2 id="bs-title">Placówka</h2>
+        <button class="exit-city-btn" onclick="closeBuildingScreen()">🗺️ Powrót</button>
+    </div>
+
+    <div style="flex:1; display:flex; flex-direction:column; background:linear-gradient(to bottom, #1a1a24, #0a0a0f); padding: 20px; overflow-y: auto;">
+
+        <div style="text-align: center;">
+            <div id="bs-icon" style="font-size:80px; text-shadow: 0 0 20px #d4af37;">🌲</div>
+            <div style="margin-top:10px; font-size:16px; color:#d4af37;">Zgromadzone surowce:</div>
+
+            <div id="bs-storage-list" style="display: flex; justify-content: center; gap: 10px; margin-top: 10px; flex-wrap: wrap;">
+                <span style="color:#aaa;">Pusty magazyn</span>
+            </div>
+        </div>
+
+        <div style="margin-top: 20px; background: rgba(0,0,0,0.5); border: 1px dashed #555; padding: 15px; border-radius: 8px;">
+            <h3 id="bs-personnel-header" style="color: #d4af37; margin-top: 0; text-align: center; font-size: 14px;">
+                Zarządzanie Personelem Placówki</h3>
+            <p style="text-align: center; color: #888; font-size: 11px; margin-top: -5px;">Wyślij osadników do pracy
+                (Drwale produkują, Woje chronią)</p>
+            <div style="display: flex; gap: 15px;">
+                <div style="flex: 1; background: #111; border: 1px solid #444; padding: 10px; border-radius: 5px;">
+                    <h4 style="margin: 0 0 10px 0; color: #aaa; font-size: 12px; text-align: center;">Wolni w
+                        Grodzie</h4>
+                    <div id="bs-idle-list"
+                         style="max-height: 180px; overflow-y: auto; display: flex; flex-direction: column; gap: 5px;"></div>
+                </div>
+                <div style="flex: 1; background: #111; border: 1px solid #32cd32; padding: 10px; border-radius: 5px;">
+                    <h4 style="margin: 0 0 10px 0; color: #32cd32; font-size: 12px; text-align: center;">Pracują
+                        Tutaj</h4>
+                    <div id="bs-assigned-list"
+                         style="max-height: 180px; overflow-y: auto; display: flex; flex-direction: column; gap: 5px;"></div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="city-build-menu">
+        <h3 style="font-size: 14px; margin-bottom: 5px;">Ulepszenia Technologiczne</h3>
+        <div class="upgrades-list" id="bs-upgrades"></div>
+    </div>
+</div>
+
+<div id="city-screen" class="hidden-display" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 3000; display: flex; flex-direction: column; background: #0a0a0f; overflow: hidden;">
+
+    <div style="background: rgba(0,0,0,0.9); padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; z-index: 4000;">
+        <button onclick="closeCityScreen()" style="background: #8b0000; color: white; border: 1px solid #d4af37; padding: 5px 15px; cursor: pointer; font-family: 'Cinzel', serif;">◀ Powrót na Szlak</button>
+        <h2 style="margin: 0; color: #d4af37; text-shadow: 0 0 10px black; letter-spacing: 2px;">Wielki Gród</h2>
+        <div style="width: 150px;"></div>
+    </div>
+
+    <div style="background: rgba(15, 15, 20, 0.95); border-bottom: 2px solid #d4af37; padding: 8px 20px; display: flex; justify-content: center; gap: 20px; font-size: 14px; font-weight: bold; color: #ccc; z-index: 4000; flex-wrap: wrap;">
+        <div class="res-group" style="cursor: default;">💰 Złoto: <span id="res-gold-advanced" style="color: #d4af37;">0</span></div>
+
+        <div class="res-group" style="cursor: default;">🌾 Żywność: <span id="cat-food-total" style="color: #fff;">0</span></div>
+        <div class="res-group" style="cursor: default;">🐻 Skóry: <span id="cat-pelts-total" style="color: #fff;">0</span></div>
+
+        <div class="res-group">🪵 Drewno: <span id="cat-wood-total" style="color: #fff;">0</span> ▼
+            <div class="res-dropdown">
+                <div class="res-item-row"><span style="color: #aaddaa;">Brzoza</span> <b id="res-wood-birch">0</b></div>
+                <div class="res-item-row"><span style="color: #8b4513;">Dąb</span> <b id="res-wood-oak">0</b></div>
+                <div class="res-item-row"><span style="color: #555;">Czarny Jesion</span> <b id="res-wood-ash">0</b></div>
+            </div>
+        </div>
+        <div class="res-group">🪨 Kruszce: <span id="cat-ores-total" style="color: #fff;">0</span> ▼
+            <div class="res-dropdown">
+                <div class="res-item-row"><span style="color: #aaaaaa;">Ciosany Kamień</span> <b id="res-stone-adv">0</b></div>
+                <div class="res-item-row"><span style="color: #777777;">Ruda Żelaza</span> <b id="res-iron-adv">0</b></div>
+            </div>
+        </div>
+        <div class="res-group">🌿 Zioła: <span id="cat-herbs-total" style="color: #fff;">0</span> ▼
+            <div class="res-dropdown">
+                <div class="res-item-row"><span style="color: #32cd32;">Jaskółcze Ziele</span> <b id="res-herb-celandine">0</b></div>
+                <div class="res-item-row"><span style="color: #9370db;">Wilczy Mlecz</span> <b id="res-herb-wolfsbane">0</b></div>
+            </div>
+        </div>
+
+        <div class="res-group">⚔️ Uzbrojenie: <span id="cat-weapons-total" style="color: #fff;">0</span> ▼
+            <div class="res-dropdown">
+                <div class="res-item-row"><span style="color: #aaa;">Miecze</span> <b id="res-wpn-sword">0</b></div>
+                <div class="res-item-row"><span style="color: #888;">Topory</span> <b id="res-wpn-axe">0</b></div>
+                <div class="res-item-row"><span style="color: #d2b48c;">Łuki</span> <b id="res-wpn-bow">0</b></div>
+                <div class="res-item-row"><span style="color: #ccc;">Włócznie</span> <b id="res-wpn-spear">0</b></div>
+                <div class="res-item-row"><span style="color: #8b4513;">Puklerze (Tarcze)</span> <b id="res-shd-wood">0</b></div>
+                <div class="res-item-row"><span style="color: #aaa;">Okute Tarcze</span> <b id="res-shd-iron">0</b></div>
+            </div>
+        </div>
+        <div class="res-group">🧪 Mikstury: <span id="cat-potions-total" style="color: #fff;">0</span> ▼
+            <div class="res-dropdown">
+                <div class="res-item-row"><span style="color: #ff4444;">Wywar Leczący</span> <b id="res-pot-heal">0</b></div>
+                <div class="res-item-row"><span style="color: #32cd32;">Jad na bestie</span> <b id="res-pot-poison">0</b></div>
+            </div>
+        </div>
+    </div>
+
+    <button id="carpenters-btn" onclick="toggleCarpentersPanel()">🔨 Warsztat Cieśli</button>
+    <button id="threats-btn" onclick="toggleThreatsPanel()">⚠️ Zagrożenia</button>
+
+    <div id="threats-panel">
+        <div class="threat-header">
+            <button class="threat-close" onclick="toggleThreatsPanel()">×</button>
+            <h2 style="color: #ff4444; margin: 0; font-size: 20px; text-transform: uppercase;">Księga Złego Losu</h2>
+            <p style="color: #aaa; font-size: 11px; margin: 5px 0 0 0;">Klątwy i bestie nękające Gród</p>
+        </div>
+        <div id="active-threats-list" style="flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 15px;">
+            <div style="color:#aaa; text-align:center; padding:20px; font-style:italic;">Na ziemiach Władycy panuje pokój.</div>
+        </div>
+    </div>
+    <div id="carpenters-panel">
+        <div class="carpenter-header">
+            <button class="carpenter-close" onclick="toggleCarpentersPanel()">×</button>
+            <h2 style="color: #d4af37; margin: 0; font-size: 20px; text-transform: uppercase;">Warsztat Cieśli</h2>
+            <p style="color: #aaa; font-size: 11px; margin: 5px 0 0 0;">Nadzór i konserwacja budowli</p>
+        </div>
+        <div class="carpenter-list" id="carpenters-buildings-list">
+
+            <div class="carpenter-item">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                    <b style="color: #fff; font-size: 14px;">Spichlerz</b>
+                    <button onclick="openRepairModal('granary', 'Spichlerz', 150)" style="background: #8b0000; color: white; border: 1px solid #ff4444; padding: 4px 10px; cursor: pointer; font-family: 'Cinzel', serif; font-size: 10px; font-weight: bold; border-radius: 3px; text-transform: uppercase;">Odbuduj</button>
+                </div>
+                <div style="font-size: 11px; color: #aaa; text-align: right; margin-bottom: 2px;">
+                    Stan: <span style="color: #ffaa00; font-weight: bold;">150 / 300</span>
+                </div>
+                <div class="health-bar-bg">
+                    <div class="health-bar-fill health-bar-warning" style="width: 50%;"></div>
+                </div>
+            </div>
+
+            <div class="carpenter-item">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                    <b style="color: #fff; font-size: 14px;">Karczma</b>
+                    <button style="background: #333; color: #777; border: 1px solid #555; padding: 4px 10px; cursor: not-allowed; font-family: 'Cinzel', serif; font-size: 10px; font-weight: bold; border-radius: 3px; text-transform: uppercase;">Bez Skazy</button>
+                </div>
+                <div style="font-size: 11px; color: #aaa; text-align: right; margin-bottom: 2px;">
+                    Stan: <span style="color: #32cd32; font-weight: bold;">200 / 200</span>
+                </div>
+                <div class="health-bar-bg">
+                    <div class="health-bar-fill" style="width: 100%;"></div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+    <div class="scene-wrapper">
+        <div class="homm3-town-scene" id="main-town-scene">
+            <img src="" id="sprite-walls" class="town-building-sprite" alt="Mury" style="pointer-events: none; opacity: 0;">
+            <img src="assets/town_buildings/capitol.png" id="sprite-capitol" class="town-building-sprite" onclick="openBuildingAction('capitol')" alt="Kapitol">
+            <img src="assets/town_buildings/alchemist.png" id="sprite-alchemist" class="town-building-sprite" onclick="openBuildingAction('alchemist')" alt="Alchemik">
+            <img src="assets/town_buildings/townhall.png" id="sprite-townhall" class="town-building-sprite" onclick="openBuildingAction('townhall')" alt="Ratusz" style="display: block;">
+            <img src="assets/town_buildings/blacksmith.png" id="sprite-blacksmith" class="town-building-sprite" onclick="openBuildingAction('blacksmith')" alt="Kuźnia">
+            <img src="assets/town_buildings/barracks.png" id="sprite-barracks" class="town-building-sprite" onclick="openBuildingAction('barracks')" alt="Koszary">
+            <img src="assets/town_buildings/granary.png" id="sprite-granary" class="town-building-sprite" onclick="openBuildingAction('granary')" alt="Spichlerz">
+            <img src="assets/town_buildings/tavern.png" id="sprite-tavern" class="town-building-sprite" onclick="openBuildingAction('tavern')" alt="Karczma">
+            <img src="assets/town_buildings/market.png" id="sprite-market" class="town-building-sprite" onclick="openBuildingAction('market')" alt="Targowisko">
+            <img src="assets/town_buildings/stable.png" id="sprite-stables" class="town-building-sprite" onclick="openBuildingAction('stables')" alt="Stajnie">
+        </div>
+    </div>
+
+    <div id="panel-build" class="city-slide-panel">
+        <h3 style="margin-top: 0; color: #d4af37; text-align: center; border-bottom: 1px solid #444; padding-bottom: 8px;">🔨 Rozbudowa Osady</h3>
+        <div class="upgrade-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px;" id="city-upgrades-container">
+            <div class="upgrade-item" id="btn-townhall" style="opacity: 0.5; pointer-events: none;"><b>Ratusz</b><br><span style="font-size:10px;">Wzniesiony</span></div>
+            <div class="upgrade-item" id="btn-tavern" onclick="buildCityUpgrade('tavern')"><b>Karczma</b><br><span style="font-size:10px;">200💰 100🪵</span></div>
+            <div class="upgrade-item" id="btn-market" onclick="buildCityUpgrade('market')"><b>Targowisko</b><br><span style="font-size:10px;">300💰 150🪵</span></div>
+            <div class="upgrade-item" id="btn-blacksmith" onclick="buildCityUpgrade('blacksmith')"><b>Kuźnia</b><br><span style="font-size:10px;">400💰 100🪵</span></div>
+            <div class="upgrade-item" id="btn-barracks" onclick="buildCityUpgrade('barracks')"><b>Koszary</b><br><span style="font-size:10px;">500💰 200🪵</span></div>
+            <div class="upgrade-item" id="btn-alchemist" onclick="buildCityUpgrade('alchemist')"><b>Alchemik</b><br><span style="font-size:10px;">1000💰 200🪵</span></div>
+            <div class="upgrade-item" id="btn-granary" onclick="buildCityUpgrade('granary')"><b>Spichlerz</b><br><span style="font-size:10px;">200💰 200🪵</span></div>
+            <div class="upgrade-item" id="btn-stables" onclick="buildCityUpgrade('stables')"><b>Stajnie</b><br><span style="font-size:10px;">300💰 200🪵</span></div>
+            <div class="upgrade-item" id="btn-walls" onclick="buildCityUpgrade('walls')"><b>Mury</b><br><span style="font-size:10px;">500💰 500🪨</span></div>
+            <div class="upgrade-item" id="btn-capitol" onclick="buildCityUpgrade('capitol')"><b>Kapitol</b><br><span style="font-size:10px;">2000💰 500🪵</span></div>
+            <div class="upgrade-item" id="btn-farm" onclick="buildCityUpgrade('farm')"><b>Farma Zwierząt</b><br><span style="font-size:10px;">300💰 150🪵</span></div>
+        </div>
+    </div>
+
+    <div id="panel-pop" class="city-slide-panel" style="width: 660px; left: 50%; bottom: 45px; margin-left: -330px; z-index: 3500; height: auto !important; min-height: 420px; padding-bottom: 20px; border-radius: 10px 10px 0 0; border-bottom: none;">
+        <h3 style="color: #d4af37; text-align: center; margin-top: 0; border-bottom: 1px dashed #555; padding-bottom: 10px; font-family: 'Cinzel', serif;">EKSPLORACJE I WYPRAWY</h3>
+
+        <div style="display: flex; gap: 20px;">
+            <div style="flex: 1; background: rgba(10, 15, 10, 0.8); padding: 15px; border: 1px solid #228b22; border-radius: 5px; box-shadow: inset 0 0 10px rgba(0,0,0,0.8);">
+                <h4 style="color: #32cd32; margin-top: 0; text-align: center; text-transform: uppercase;">Wyprawa w Dzicz</h4>
+                <p style="font-size: 11px; color: #aaa; text-align: center; margin-bottom: 15px;">Wybierz drużynę i wyślij ją na poszukiwanie surowców.</p>
+
+                <div id="expedition-setup-container">
+                    </div>
+            </div>
+
+            <div style="flex: 1; background: rgba(20, 5, 5, 0.8); padding: 15px; border: 1px solid #8b0000; border-radius: 5px; box-shadow: inset 0 0 10px rgba(0,0,0,0.8);">
+                <h4 style="color: #ff4444; margin-top: 0; text-align: center; text-transform: uppercase;">Lokalne Zagrożenia</h4>
+                <p style="font-size: 11px; color: #aaa; text-align: center; margin-bottom: 15px;">Wyślij zbrojnych, aby natychmiast oczyścili okolicę.</p>
+
+                <div id="local-threats-container" style="max-height: 200px; overflow-y: auto;">
+                    </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="panel-log" class="city-panel" style="display: none;"> <h3 style="color: #d4af37; border-bottom: 1px dashed #555; padding-bottom: 5px; margin-top: 0;">Kronika Grodu</h3>
+        <div style="background: #111; padding: 10px; border-radius: 5px; height: 300px; overflow-y: auto;">
+            <div id="city-log-list" style="display: flex; flex-direction: column; gap: 5px;">
+                <div style="color: #aaa; text-align: center; padding: 20px; font-style: italic;">Dziennik jest pusty. W Grodzie panuje spokój.</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="city-bottom-nav">
+        <button class="city-tab-btn" onclick="toggleCityPanel('panel-build', this)">🔨 Rozbudowa</button>
+        <button class="city-tab-btn" onclick="toggleCityPanel('panel-pop', this)">🗺️ Eksploracje i Wyprawy</button>
+        <button class="city-tab-btn" onclick="toggleCityPanel('panel-log', this)">📜 Kronika</button>
+    </div>
+
+</div>
+
+
+<div id="repair-modal" class="hidden-display" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 5200; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(8px);">
+
+    <div style="position: relative; height: 80vh; max-height: 800px; aspect-ratio: 4/5; background-image: url('assets/ui/build_frame_v2.png'); background-size: 100% 100%; background-position: center; filter: drop-shadow(0 0 50px #000);">
+
+        <div style="position: absolute; top: 9%; left: 0; width: 100%; height: 8%; display: flex; justify-content: center; align-items: center; z-index: 10;">
+            <h2 id="repair-title" style="color: #d4af37; margin: 0; text-transform: uppercase; font-size: 18px; font-weight: 900; letter-spacing: 2px; text-shadow: 2px 2px 4px #000;">
+                ODBUDOWA:
+            </h2>
+        </div>
+
+        <div style="position: absolute; top: 20%; bottom: 27%; left: 14%; right: 14%; display: flex; flex-direction: column;">
+            <div class="mroczny-scroll" style="overflow-y: auto; flex-grow: 1; padding-right: 10px;">
+
+                <div style="text-align: center; margin-bottom: 15px; border-bottom: 2px solid #5a4529; padding-bottom: 10px;">
+                    <span style="color: #4a3623; font-size: 12px; font-weight: bold; text-transform: uppercase;">Braki strukturalne do załatania:</span>
+                    <b id="repair-missing-val" style="color: #ff4444; font-size: 26px; display: block; font-weight: 900;">0</b>
+                </div>
+
+                <div id="repair-wood-section" style="margin-bottom: 15px;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #2b1d0f; padding-bottom: 3px; margin-bottom: 10px;">
+                        <h4 style="margin: 0; color: #000; font-size: 15px; font-weight: 900; text-transform: uppercase;">ZDECYDUJ O MATERIALE</h4>
+                        <span id="repair-wood-status" style="font-size: 14px; font-weight: 900; color: #000; background: rgba(255,255,255,0.4); padding: 0 5px; border-radius: 3px;">0 / 0</span>
+                    </div>
+
+                    <div style="font-size: 11px; color: #4a3623; font-weight: bold; margin-bottom: 10px; font-style: italic;">
+                        Przeznacz zapasy z Głównego Skarbca, by powstrzymać niszczenie.
+                    </div>
+
+                    <div id="repair-wood-inputs" style="display: flex; flex-direction: column; gap: 8px;">
+                        </div>
+                </div>
+            </div>
+        </div>
+
+        <div style="position: absolute; bottom: 8%; left: 0; width: 100%; height: 16%; display: flex; justify-content: center; align-items: center; gap: 4%;">
+
+            <button onclick="document.getElementById('repair-modal').classList.add('hidden-display')"
+                style="width: 32%; height: 70%; background: url('assets/ui/btn_odrzuc.png') no-repeat center; background-size: contain; border: none; background-color: transparent; color: transparent; font-size: 0; cursor: pointer; transition: transform 0.1s;"
+                onmousedown="this.style.transform='scale(0.95)'" onmouseup="this.style.transform='scale(1.0)'"></button>
+
+            <button id="repair-confirm-btn" onclick="confirmBuildingRepair()"
+                style="width: 32%; height: 70%; background: url('assets/ui/btn_zatwierdz.png') no-repeat center; background-size: contain; border: none; background-color: transparent; color: transparent; font-size: 0; cursor: pointer; transition: transform 0.1s, filter 0.3s; filter: grayscale(1) brightness(0.6);"
+                onmousedown="this.style.transform='scale(0.95)'" onmouseup="this.style.transform='scale(1.0)'" disabled></button>
+        </div>
+    </div>
+</div>
+
+<div id="blacksmith-modal" class="hidden-display" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 5000; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(8px);">
+
+    <div style="background: url('assets/ui/parchment.png') no-repeat center; background-size: 100% 100%; width: 800px; height: 600px; position: relative; padding: 50px; box-sizing: border-box; font-family: 'Cinzel', serif; display: flex; gap: 20px;">
+
+        <button onclick="window.closeBlacksmith()" style="position: absolute; top: 20px; right: 30px; background: none; border: none; font-size: 24px; color: #8b0000; cursor: pointer; font-weight: bold;">X</button>
+
+        <div style="flex: 1; border-right: 2px dashed #8b4513; padding-right: 20px; display: flex; flex-direction: column;">
+            <h2 style="color: #8b0000; margin-top: 0; text-align: center; font-size: 22px; text-shadow: 1px 1px 2px #000;">🔥 KOWALE</h2>
+            <p style="font-size: 11px; color: #5a4529; text-align: center; font-weight: bold;">Rzemiosło wymaga wprawnej ręki i silnego ramienia do miecha.</p>
+
+            <div style="background: rgba(43, 29, 15, 0.1); border: 1px solid #8b4513; padding: 10px; border-radius: 5px; margin-bottom: 15px;">
+                <h4 style="margin: 0 0 5px 0; color: #4a0000; font-size: 14px;">Mistrz Kuźni</h4>
+                <select id="bs-master-select" onchange="window.updateBlacksmithUI()" style="width: 100%; padding: 5px; background: #2b1d0f; color: #d4af37; border: 1px solid #5a4529; font-family: 'Cinzel', serif;">
+                    <option value="">-- Przydziel Chłopa --</option>
+                </select>
+                <div id="bs-master-stats" style="font-size: 11px; color: #8b4513; margin-top: 5px; font-weight: bold;">Brak Mistrza. Kuźnia stoi pusta.</div>
+            </div>
+
+            <div style="background: rgba(43, 29, 15, 0.1); border: 1px solid #8b4513; padding: 10px; border-radius: 5px;">
+                <h4 style="margin: 0 0 5px 0; color: #4a0000; font-size: 14px;">Pomocnik (Opcjonalnie)</h4>
+                <select id="bs-apprentice-select" style="width: 100%; padding: 5px; background: #2b1d0f; color: #aaa; border: 1px solid #5a4529; font-family: 'Cinzel', serif;">
+                    <option value="">-- Wybierz Pomocnika --</option>
+                </select>
+                <div style="font-size: 10px; color: #8b4513; margin-top: 5px; font-style: italic;">Zwiększa szansę na sukces i dodaje wytrzymałości orężu.</div>
+            </div>
+        </div>
+
+        <div style="flex: 1.2; display: flex; flex-direction: column;">
+            <h2 style="color: #5a4529; margin-top: 0; text-align: center; font-size: 22px;">⚒️ KOWADŁO</h2>
+
+            <div style="display: flex; flex-direction: column; gap: 15px; flex-grow: 1;">
+                <div>
+                    <label style="color: #8b0000; font-size: 12px; font-weight: bold;">Schemat Oręża:</label>
+                    <select id="bs-item-type" onchange="window.updateBlacksmithUI()" style="width: 100%; padding: 8px; background: #2b1d0f; color: #f0e6d2; border: 1px solid #8b4513; font-family: 'Cinzel', serif;">
+                        <option value="sword">Miecz Jednoręczny</option>
+                        <option value="axe">Topór Drwala</option>
+                        <option value="bow">Łuk Myśliwski</option>
+                        <option value="spear">Włócznia</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label style="color: #8b0000; font-size: 12px; font-weight: bold;">Główny Surowiec (Ostrze/Grot):</label>
+                    <select id="bs-primary-mat" style="width: 100%; padding: 8px; background: #2b1d0f; color: #aaa; border: 1px solid #8b4513; font-family: 'Cinzel', serif;">
+                        <option value="stone">Ciosany Kamień (Tani, słaby)</option>
+                        <option value="iron">Żelazo (Solidny, ciężki)</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label style="color: #8b0000; font-size: 12px; font-weight: bold;">Surowiec Pomocniczy (Drzewce/Rękojeść):</label>
+                    <select id="bs-secondary-mat" style="width: 100%; padding: 8px; background: #2b1d0f; color: #d2b48c; border: 1px solid #8b4513; font-family: 'Cinzel', serif;">
+                        <option value="wood_birch">Brzoza (Lekka, łamliwa)</option>
+                        <option value="wood_ash">Jesion (Elastyczny, idealny na łuki)</option>
+                        <option value="wood_oak">Dąb (Ciężki, bardzo wytrzymały)</option>
+                    </select>
+                </div>
+
+                <div style="background: rgba(139, 0, 0, 0.1); border: 1px dashed #8b0000; padding: 10px; text-align: center; margin-top: 10px;">
+                    <span style="color: #4a0000; font-size: 12px; font-weight: bold; text-transform: uppercase;">Szacowana Szansa na Sukces:</span>
+                    <div id="bs-success-chance" style="font-size: 24px; color: #8b0000; font-weight: bold;">0%</div>
+                </div>
+            </div>
+
+            <button onclick="window.forgeItem()" style="width: 100%; padding: 15px; background: #8b0000; color: white; border: 2px solid #5a4529; font-weight: bold; cursor: pointer; text-transform: uppercase; font-family: 'Cinzel', serif; font-size: 16px; transition: 0.2s; box-shadow: 0 5px 15px rgba(0,0,0,0.5);" onmouseover="this.style.background='#a00000'" onmouseout="this.style.background='#8b0000'">
+                Rozpal Palenisko i Kuj!
+            </button>
+        </div>
+    </div>
+</div>
+
+<div id="alchemist-modal" class="hidden-display" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 4500; display: flex; align-items: center; justify-content: center;">
+    <div class="n-modal-ui" style="max-width: 600px; width: 90%; padding: 30px; color: white; font-family: 'Cinzel', serif; position: relative;">
+        <h2 style="color: #32cd32; text-align: center; margin-top: 0; text-transform: uppercase; letter-spacing: 2px;">🧪 Chata Alchemika</h2>
+        <p style="font-size: 13px; color: #888; text-align: center; margin-bottom: 25px;">Warz potężne dekokty z ziół zebranych na mokradłach.</p>
+        <div style="display: flex; flex-direction: column; gap: 10px; max-height: 300px; overflow-y: auto; padding-right: 10px;">
+            <div style="background: rgba(0,0,0,0.5); border: 1px solid #228b22; padding: 15px; border-radius: 5px; display: flex; justify-content: space-between; align-items: center;">
+                <div><b style="color: #ff4444;">Wywar Leczący</b><br><span style="font-size: 11px; color: #888;">Wymaga: <span style="color: #d4af37;">5💰</span>, 3🌿 (Jaskółcze Ziele)</span></div>
+                <button onclick="craftItem('pot_heal')" style="padding: 8px 15px; background: #111; color: #32cd32; border: 1px solid #32cd32; cursor: pointer; font-weight: bold;">Uwarz</button>
+            </div>
+            <div style="background: rgba(0,0,0,0.5); border: 1px solid #228b22; padding: 15px; border-radius: 5px; display: flex; justify-content: space-between; align-items: center;">
+                <div><b style="color: #9370db;">Jad na Bestie</b><br><span style="font-size: 11px; color: #888;">Wymaga: <span style="color: #d4af37;">10💰</span>, 5🌿 (Wilczy Mlecz)</span></div>
+                <button onclick="craftItem('pot_poison')" style="padding: 8px 15px; background: #111; color: #32cd32; border: 1px solid #32cd32; cursor: pointer; font-weight: bold;">Uwarz</button>
+            </div>
+        </div>
+        <button onclick="document.getElementById('alchemist-modal').classList.add('hidden-display')" style="width: 100%; margin-top: 25px; padding: 15px; background: #222; color: #aaa; border: 1px solid #555; cursor: pointer; font-family: 'Cinzel', serif; text-transform: uppercase;">Opuść Chatę</button>
+    </div>
+</div>
+
+<div id="market-modal" class="hidden-display" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 4500; display: flex; align-items: center; justify-content: center;">
+    <div style="background: #1a1a24; border: 2px solid #d4af37; border-radius: 8px; width: 400px; padding: 20px; color: white; font-family: 'Cinzel', serif;">
+        <h2 style="color: #d4af37; text-align: center; margin-top: 0;">⚖️ Cennik Kupiecki</h2>
+        <p style="font-size: 12px; color: #aaa; text-align: center;">Sprzedaj pakiety (po 10 sztuk) kupcom z odległych krain.</p>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 20px;">
+            <button onclick="tradeResource('sell', 'wood')" style="padding: 10px; background: #222; color: #fff; border: 1px solid #8b0000; cursor: pointer;">🪵 Drewno (+5💰)</button>
+            <button onclick="tradeResource('sell', 'stone')" style="padding: 10px; background: #222; color: #fff; border: 1px solid #8b0000; cursor: pointer;">🪨 Kamień (+10💰)</button>
+            <button onclick="tradeResource('sell', 'food')" style="padding: 10px; background: #222; color: #fff; border: 1px solid #8b0000; cursor: pointer;">🌾 Żywność (+8💰)</button>
+            <button onclick="tradeResource('sell', 'herbs')" style="padding: 10px; background: #222; color: #fff; border: 1px solid #8b0000; cursor: pointer;">🌿 Zioła (+15💰)</button>
+            <button onclick="tradeResource('sell', 'pelts')" style="padding: 10px; background: #222; color: #fff; border: 1px solid #8b0000; cursor: pointer;">🐻 Skóry (+40💰)</button>
+            <button onclick="tradeResource('sell', 'weapons')" style="padding: 10px; background: #222; color: #fff; border: 1px solid #8b0000; cursor: pointer;">🗡️ Broń (+50💰)</button>
+        </div>
+        <button onclick="document.getElementById('market-modal').classList.add('hidden-display')" style="width: 100%; margin-top: 20px; padding: 10px; background: #8b0000; color: white; border: none; cursor: pointer; font-weight: bold;">Zakończ Handel</button>
+    </div>
+</div>
+
+<div id="tavern-modal" class="hidden-display" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 4500; display: flex; align-items: center; justify-content: center;">
+    <div class="n-modal-ui" style="max-width: 900px; width: 95%; color: white; font-family: 'Cinzel', serif; box-sizing: border-box; position: relative;">
+        <div style="background: rgba(10, 10, 15, 0.9); padding: 30px; border-radius: 8px; border: 1px solid #333; margin: 80px 100px 50px 100px; box-shadow: 0 0 30px rgba(0,0,0,0.8);">
+            <div style="display: grid; grid-template-columns: 1fr 1.2fr; gap: 30px;">
+                <div style="text-align: center; border-right: 1px dashed #444; padding-right: 20px;">
+                    <div style="font-size: 50px; margin-top: -20px; filter: drop-shadow(0 0 10px rgba(212, 175, 55, 0.3));">Karczma</div>
+                    <p style="font-size: 13px; color: #ccc; margin-bottom: 25px; line-height: 1.4; font-style: italic;">Gwar rozmów, śpiewy lutnisty i zapach pieczonego mięsa. To serce osady, gdzie rodzą się plotki i zlecenia na potwory.</p>
+                    <div style="background: rgba(50, 205, 50, 0.1); padding: 12px; border: 1px solid #32cd32; border-radius: 5px; margin-bottom: 20px; color: #32cd32;">
+                        <b style="text-transform: uppercase; font-size: 11px; letter-spacing: 1px;">Pasywny Przychód z Podatków:</b><br>
+                        <span style="font-size: 18px; font-weight: bold;">+10 💰</span> <small>/ cykl</small>
+                    </div>
+                    <div style="background: rgba(0, 0, 0, 0.5); border: 1px solid #8b0000; padding: 20px; border-radius: 5px; margin-bottom: 25px; box-shadow: inset 0 0 15px rgba(139, 0, 0, 0.2);">
+                        <h4 style="margin: 0 0 8px 0; color: #ffaa00; text-transform: uppercase;">Wielka Biesiada</h4>
+                        <p style="font-size: 11px; color: #aaa; margin: 0 0 15px 0;">Postaw wszystkim trunki. Goście Karczmy zyskają <b>+5 PD</b>.</p>
+                        <div style="font-size: 13px; margin-bottom: 15px; border-top: 1px solid #444; padding-top: 10px;">Koszt: <b style="color:#ffaa00; font-size: 15px;">50 🌾 Żywności</b></div>
+                        <button onclick="holdFeast()" style="width: 100%; padding: 12px; background: #8b0000; color: white; border: 1px solid #ff4444; font-weight: bold; cursor: pointer; text-transform: uppercase; transition: 0.3s;">Zorganizuj Ucztę</button>
+                    </div>
+                    <button onclick="document.getElementById('tavern-modal').classList.add('hidden-display')" style="padding: 12px 20px; background: #222; color: #aaa; border: 1px solid #555; cursor: pointer; width: 100%; font-family: 'Cinzel', serif; text-transform: uppercase;">Wyjdź na Dziedziniec</button>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 20px;">
+                    <div style="background: rgba(20, 15, 10, 0.8); border: 1px solid #d4af37; border-radius: 5px; padding: 15px; box-shadow: inset 0 0 20px rgba(0,0,0,0.8);">
+                        <h3 style="margin: 0 0 10px 0; color: #d4af37; border-bottom: 1px solid #555; padding-bottom: 5px;">📜 Tablica Zleceń</h3>
+                        <div id="tavern-quests-list" style="display: flex; flex-direction: column; gap: 10px; max-height: 150px; overflow-y: auto;"></div>
+                    </div>
+                    <div style="background: rgba(0,0,0,0.6); border: 1px solid #444; border-radius: 5px; padding: 15px; flex-grow: 1; display: flex; flex-direction: column;">
+                        <h3 style="margin: 0 0 10px 0; color: #aaa; border-bottom: 1px solid #333; padding-bottom: 5px;">🍻 Aktualnie przy stołach</h3>
+                        <div id="tavern-patrons-list" style="max-height: 180px; overflow-y: auto; padding-right: 5px; display: flex; flex-direction: column; gap: 5px;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="granary-modal" class="hidden-display" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 4500; display: flex; align-items: center; justify-content: center;">
+    <div style="background: #1a1a24; border: 2px solid #f4a460; border-radius: 8px; width: 340px; padding: 20px; text-align: center; color: white; font-family: 'Cinzel', serif; box-shadow: 0 0 30px rgba(244, 164, 96, 0.2);">
+        <div style="font-size: 50px; margin-bottom: 10px;">🌾</div>
+        <h2 style="color: #f4a460; margin-top: 0; border-bottom: 1px dashed #555; padding-bottom: 10px;">Spichlerz</h2>
+        <p style="font-size: 13px; color: #aaa; margin-bottom: 20px;">Ogromne silosy pełne ziarna i wędzonych mięsiw. To serce przetrwania Grodu w trudnych czasach.</p>
+        <div style="background: #222; border: 1px solid #8b0000; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
+            <h4 style="margin: 0 0 5px 0; color: #ffaa00;">Sycący Posiłek</h4>
+            <p style="font-size: 11px; color: #ccc; margin: 0 0 10px 0;">Rozdaj dodatkowe racje żywnościowe osadnikom, którzy wrócili z pracy. <b>Natychmiastowo przerywa to ich odpoczynek (Sen)</b> i stawia ich na nogi (Status: Gotowy).</p>
+            <div style="font-size: 13px; margin-bottom: 15px;">Koszt posiłku: <b style="color:#32cd32;">20 🌾 Żywności</b></div>
+            <button onclick="feedSettlers()" style="width: 100%; padding: 10px; background: #f4a460; color: #000; border: 1px solid #fff; font-weight: bold; cursor: pointer; text-transform: uppercase;">Nakarm Zmęczonych</button>
+        </div>
+        <button onclick="document.getElementById('granary-modal').classList.add('hidden-display')" style="padding: 10px 20px; background: #333; color: white; border: 1px solid #555; cursor: pointer; width: 100%;">Wyjdź na Dziedziniec</button>
+    </div>
+</div>
+
+<div id="capitol-modal" class="hidden-display" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 4500; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(5px);">
+    <div style="background: #1a1a24; border: 2px solid #d4af37; border-radius: 8px; width: 600px; padding: 30px; text-align: center; color: white; font-family: 'Cinzel', serif; box-shadow: 0 0 50px rgba(212, 175, 55, 0.4);">
+        <div style="font-size: 60px; margin-bottom: 10px;">👑</div>
+        <h2 style="color: #d4af37; margin-top: 0; border-bottom: 1px dashed #555; padding-bottom: 10px; font-size: 28px;">Sala Tronowa Kapitolu</h2>
+        <p style="font-size: 14px; color: #ccc; margin-bottom: 30px;">Z tego miejsca rządzisz całą krainą. Podpisz dekrety, które na zawsze odmienią losy Twoich poddanych.</p>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+            <div style="background: #111; border: 1px solid #d4af37; padding: 15px; border-radius: 5px; text-align: left;">
+                <h4 style="margin: 0 0 5px 0; color: #d4af37;">📜 Podatek Królewski</h4>
+                <div style="font-size: 11px; color: #aaa; margin-bottom: 10px;">Pasywny przychód z Grodu rośnie o +20💰/cykl.</div>
+                <button onclick="buildCityUpgrade('edict_taxes')" style="width: 100%; padding: 8px; background: #222; color: #fff; border: 1px solid #d4af37; cursor: pointer;">Uchwal (1000💰)</button>
+            </div>
+            <div style="background: #111; border: 1px solid #32cd32; padding: 15px; border-radius: 5px; text-align: left;">
+                <h4 style="margin: 0 0 5px 0; color: #32cd32;">📜 Dekret o Pracy</h4>
+                <div style="font-size: 11px; color: #aaa; margin-bottom: 10px;">Wszyscy osadnicy produkują bazowo +2 surowca więcej.</div>
+                <button onclick="buildCityUpgrade('edict_labor')" style="width: 100%; padding: 8px; background: #222; color: #fff; border: 1px solid #32cd32; cursor: pointer;">Uchwal (1500💰 500🪵 500🪨)</button>
+            </div>
+            <div style="background: #111; border: 1px solid #4682b4; padding: 15px; border-radius: 5px; text-align: left;">
+                <h4 style="margin: 0 0 5px 0; color: #4682b4;">📜 Traktat Handlowy</h4>
+                <div style="font-size: 11px; color: #aaa; margin-bottom: 10px;">Kupcy na Targu płacą o 50% więcej złota za wszystko.</div>
+                <button onclick="buildCityUpgrade('edict_trade')" style="width: 100%; padding: 8px; background: #222; color: #fff; border: 1px solid #4682b4; cursor: pointer;">Uchwal (2000💰)</button>
+            </div>
+            <div style="background: #111; border: 1px solid #8b4513; padding: 15px; border-radius: 5px; text-align: left;">
+                <h4 style="margin: 0 0 5px 0; color: #8b4513;">📜 Gildia Architektów</h4>
+                <div style="font-size: 11px; color: #aaa; margin-bottom: 10px;">Max. pojemność magazynów na mapie rośnie o 200.</div>
+                <button onclick="buildCityUpgrade('edict_logistics')" style="width: 100%; padding: 8px; background: #222; color: #fff; border: 1px solid #8b4513; cursor: pointer;">Uchwal (1500💰 1000🪵 1000🪨)</button>
+            </div>
+        </div>
+        <div style="background: #111; border: 1px solid #ff4444; padding: 15px; border-radius: 5px; text-align: center; margin-bottom: 20px;">
+            <h4 style="margin: 0 0 5px 0; color: #ff4444;">📜 Pobór Powszechny</h4>
+            <div style="font-size: 12px; color: #aaa; margin-bottom: 10px;">Zwiększa limit ludności o dodatkowe 15 miejsc. Zbuduj wielką armię!</div>
+            <button onclick="buildCityUpgrade('edict_military')" style="padding: 10px 30px; background: #8b0000; color: #fff; border: 1px solid #ff4444; cursor: pointer; font-weight: bold;">Uchwal (2000💰 500🪵 500🪨)</button>
+        </div>
+        <button onclick="document.getElementById('capitol-modal').classList.add('hidden-display')" style="padding: 12px 30px; background: #333; color: white; border: 1px solid #d4af37; cursor: pointer; font-family: 'Cinzel', serif; font-size: 16px;">Opuść Salę Tronową</button>
+    </div>
+</div>
+
+<div id="townhall-modal" class="hidden-display" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 4500; display: flex; align-items: center; justify-content: center;">
+    <div style="background: #1a1a24; border: 2px solid #4682b4; border-radius: 8px; width: 500px; max-height: 80vh; display: flex; flex-direction: column; padding: 20px; color: white; font-family: 'Cinzel', serif;">
+        <h2 style="color: #4682b4; text-align: center; margin-top: 0;">🏰 Rejestr Ludności</h2>
+        <div style="background: rgba(0,0,0,0.5); border: 1px solid #555; padding: 15px; border-radius: 5px; margin-bottom: 15px;">
+            <h4 style="margin: 0 0 10px 0; color: #aaa;">🧍 Przyjmij Osadników (20💰 / os.)</h4>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <input type="number" id="rec-peasant" value="1" min="1" style="width: 50px; background: #222; color: #fff; border: 1px solid #444; text-align: center; padding: 5px;">
+                <button onclick="recruitPeasants()" style="background: #32cd32; color: #000; border: none; padding: 5px 15px; font-weight: bold; cursor: pointer; border-radius: 3px;">Zwerbuj</button>
+            </div>
+        </div>
+        <p style="font-size: 13px; color: #aaa; text-align: center; border-bottom: 1px solid #333; padding-bottom: 10px;">Przeglądaj cechy i doświadczenie swoich poddanych.</p>
+        <div style="background: #111; border: 1px solid #d4af37; padding: 15px; margin-bottom: 15px; border-radius: 5px; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <span style="color: #aaa; font-size: 13px;">Domy w Grodzie:</span> <b id="th-houses-count" style="color: #fff; font-size: 15px;">0</b><br>
+                <span style="color: #aaa; font-size: 13px;">Populacja:</span> <b id="th-pop-limit" style="color: #32cd32; font-size: 15px;">0/5</b>
+            </div>
+            <button onclick="socket.emit('build_house')" style="background: #4682b4; color: #fff; border: 1px solid #fff; padding: 8px 15px; cursor: pointer; border-radius: 3px; font-weight: bold; transition: 0.2s;">Wznieś Dom (50🪵 50🪨)</button>
+        </div>
+        <div id="population-list" style="overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 10px; padding-right: 5px; margin-bottom: 20px;">
+            <div style="text-align: center; color: #666; font-style: italic; padding: 20px;">Trwa zwoływanie poddanych...</div>
+        </div>
+        <button onclick="document.getElementById('townhall-modal').classList.add('hidden-display')" style="padding: 10px; background: #333; color: white; border: 1px solid #555; cursor: pointer;">Zwiń Pergamin</button>
+    </div>
+</div>
+
+<div id="stables-modal" class="hidden-display" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 4500; display: flex; align-items: center; justify-content: center;">
+    <div style="background: #1a1a24; border: 2px solid #8b4513; border-radius: 8px; width: 320px; padding: 20px; text-align: center; color: white; font-family: 'Cinzel', serif;">
+        <h2 style="color: #d2b48c; margin-top: 0;">🐎 Królewskie Stajnie</h2>
+        <p style="font-size: 13px; color: #aaa; margin-bottom: 20px;">Wyhoduj rącze rumaki i zmontuj nowe wozy, by sprawniej odbierać surowce z placówek!</p>
+        <div style="background: #111; padding: 15px; border: 1px dashed #555; margin-bottom: 20px;">
+            <button onclick="buyCaravan()" style="width: 100%; padding: 10px; background: #8b4513; color: white; border: 1px solid #d2b48c; font-weight: bold; cursor: pointer;">Kup nowy Wóz (200💰)</button>
+        </div>
+        <button onclick="document.getElementById('stables-modal').classList.add('hidden-display')" style="padding: 10px 20px; background: #333; color: white; border: none; cursor: pointer;">Opuść Stajnie</button>
+    </div>
+</div>
+
+<div id="walls-modal" class="hidden-display" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 4500; display: flex; align-items: center; justify-content: center;">
+    <div style="background: #1a1a24; border: 2px solid #555; border-radius: 8px; width: 320px; padding: 20px; text-align: center; color: white; font-family: 'Cinzel', serif;">
+        <h2 style="color: #aaa; margin-top: 0;">🧱 Potężne Mury</h2>
+        <p style="font-size: 13px; color: #ccc; margin-bottom: 20px;">Wysokie palisady i wieże strażnicze odstraszają dzikie bestie. Gród może teraz pomieścić znacznie większą populację wojowników!</p>
+        <div style="background: #111; padding: 15px; border: 1px dashed #555; color: #ffaa00; margin-bottom: 20px;">Limit Wojska w Koszarach: +15</div>
+        <button onclick="document.getElementById('walls-modal').classList.add('hidden-display')" style="padding: 10px 20px; background: #8b0000; color: white; border: none; font-weight: bold; cursor: pointer;">Chwała Władycy!</button>
+    </div>
+</div>
+
+<div id="plan-expedition-modal" class="hidden-display" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 4500; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(5px);">
+    <div style="background: #111; border: 2px solid #d4af37; border-radius: 8px; max-width: 600px; width: 95%; padding: 20px; color: #fff; font-family: 'Cinzel', serif;">
+        <h2 style="color: #d4af37; text-align: center; border-bottom: 1px solid #333; padding-bottom: 10px; margin-top: 0;">🗺️ Planowanie Wyprawy</h2>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+            <div>
+                <h4 style="color: #d4af37; margin: 0 0 10px 0;">Kierunek:</h4>
+                <select id="exp-target" onchange="updateExpectedLoot()" style="width: 100%; padding: 10px; background: #222; color: #fff; border: 1px solid #d4af37; font-family: 'Cinzel', serif;">
+                    <option value="forest">Głęboka Puszcza</option>
+                    <option value="swamp">Mokradła</option>
+                    <option value="mountains">Góry</option>
+                </select>
+                <h4 style="color: #d4af37; margin: 15px 0 10px 0;">Cel misji:</h4>
+                <select id="exp-mission" onchange="updateExpectedLoot()" style="width: 100%; padding: 10px; background: #222; color: #fff; border: 1px solid #d4af37; font-family: 'Cinzel', serif;">
+                    <option value="gather">Zbieractwo i Wyrąb</option>
+                    <option value="hunt">Łowy na Bestie</option>
+                    <option value="scout">Zwiad</option>
+                </select>
+            </div>
+            <div style="background: #1a1a24; padding: 10px; border: 1px dashed #555; border-radius: 5px;">
+                <h4 style="color: #d4af37; margin: 0 0 10px 0;">Wybierz Zbrojnych i Czeladź:</h4>
+                <div id="exp-crew-list" style="max-height: 150px; overflow-y: auto; display: flex; flex-direction: column; gap: 5px; background: #111; padding: 5px; border: 1px solid #333; border-radius: 3px;"></div>
+            </div>
+        </div>
+        <div style="display: flex; gap: 10px;">
+            <button onclick="document.getElementById('plan-expedition-modal').classList.add('hidden-display')" style="flex: 1; padding: 10px; background: #333; color: white; border: 1px solid #555; cursor: pointer;">Anuluj</button>
+            <button onclick="confirmAndSendExpedition()" style="flex: 2; padding: 10px; background: #8b0000; color: white; border: 1px solid #ff4444; font-weight: bold; cursor: pointer; text-shadow: 0 0 5px #000;">Wymarsz!</button>
+        </div>
+    </div>
+</div>
+
+<div id="expedition-modal" class="hidden-display" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 4000; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(3px);">
+    <div class="n-modal-msg" style="max-width: 500px; width: 90%; font-family: 'Cinzel', serif; text-align: center; box-sizing: border-box;">
+        <div style="font-size: 60px; margin-bottom: 15px; filter: drop-shadow(0px 2px 3px rgba(0,0,0,0.3));">🧭</div>
+        <h2 style="margin-top: 0; margin-bottom: 20px; color: #6b1c1c; text-transform: uppercase; letter-spacing: 2px; font-weight: 800; text-shadow: 1px 1px 1px rgba(255,255,255,0.1);">Raport z Wyprawy</h2>
+        <div id="expedition-story" style="font-size: 15px; color: #2b1d0f; line-height: 1.5; margin-bottom: 25px; font-style: italic; font-weight: 600;"></div>
+        <div style="background: rgba(40, 30, 20, 0.1); padding: 20px; margin-bottom: 30px; border-radius: 8px; box-shadow: inset 0 0 20px rgba(60, 40, 20, 0.2);">
+            <b style="color: #5c3a21; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 10px;">Zdobycze i Łupy:</b>
+            <div id="expedition-loot" style="font-size: 17px; font-weight: bold; color: #006400;"></div>
+        </div>
+        <button onclick="document.getElementById('expedition-modal').classList.add('hidden-display')" style="background-image: url('assets/ui/btn_confirm.png'); background-size: 100% 100%; background-position: center; background-color: transparent; border: none; width: 100%; height: 65px; display: flex; justify-content: center; align-items: center; color: #f0e6d2; font-family: 'Cinzel', serif; font-size: 18px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; cursor: pointer; box-shadow: 0 10px 20px rgba(0,0,0,0.4); text-shadow: 2px 2px 4px #000000; transition: transform 0.1s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1.0)'">Przyjąłem do Wiadomości</button>
+    </div>
+</div>
+
+<div id="random-event-modal" class="hidden-display" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 5000; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(3px);">
+    <div class="n-modal-msg" style="max-width: 500px; width: 90%; font-family: 'Cinzel', serif; text-align: center; box-sizing: border-box;">
+        <img id="re-icon-img" src="" alt="Ikona Zdarzenia" style="width: 100px; height: 100px; object-fit: contain; margin-bottom: 15px; filter: drop-shadow(0px 5px 10px rgba(0,0,0,0.4));">
+        <h2 id="re-title" style="padding: 0 10%; margin-top: 0; margin-bottom: 15px; color: #6b1c1c; text-transform: uppercase; letter-spacing: 2px; font-weight: 800; text-shadow: 1px 1px 1px rgba(255,255,255,0.1);">Tytuł</h2>
+        <p id="re-desc" style="padding: 0 15%; font-size: 14px; color: #2b1d0f; line-height: 1.5; margin-bottom: 20px; font-style: italic; font-weight: 600;">Opis...</p>
+
+        <div id="re-effects-container" style="background: rgba(40, 30, 20, 0.1); padding: 15px; margin-bottom: 25px; border-radius: 8px; box-shadow: inset 0 0 20px rgba(60, 40, 20, 0.2);">
+            <b style="color: #5c3a21; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 5px;">Skutki / Zyski:</b>
+            <div id="re-effects" style="font-size: 15px; font-weight: bold; color: #8b0000;"></div>
+        </div>
+
+        <div id="re-choices-container" style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;">
+            </div>
+    </div>
+</div>
+
+<div id="payment-modal" class="hidden-display" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 5000; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(8px);">
+    <div style="position: relative; height: 90vh; max-height: 900px; aspect-ratio: 4/5; background-image: url('assets/ui/build_frame_v2.png'); background-size: 100% 100%; background-position: center; filter: drop-shadow(0 0 50px #000);">
+        <div style="position: absolute; top: 9%; left: 0; width: 100%; height: 8%; display: flex; justify-content: center; align-items: center; z-index: 10;">
+            <h2 id="payment-title" style="color: #d4af37; margin: 0; text-transform: uppercase; font-size: 18px; font-weight: 900; letter-spacing: 2px; text-shadow: 2px 2px 4px #000;">BUDOWA</h2>
+        </div>
+        <div style="position: absolute; top: 20%; bottom: 27%; left: 14%; right: 14%; display: flex; flex-direction: column;">
+            <div class="mroczny-scroll" style="overflow-y: auto; flex-grow: 1; padding-right: 10px;">
+                <div style="text-align: center; margin-bottom: 15px; border-bottom: 2px solid #5a4529; padding-bottom: 10px;">
+                    <span style="color: #4a3623; font-size: 12px; font-weight: bold; text-transform: uppercase;">Złoto ze Skarbca:</span>
+                    <b id="payment-gold-cost" style="color: #8b0000; font-size: 26px; display: block; font-weight: 900;">0 💰</b>
+                </div>
+                <div id="payment-wood-section" style="margin-bottom: 15px;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #2b1d0f; padding-bottom: 3px; margin-bottom: 10px;">
+                        <h4 style="margin: 0; color: #000; font-size: 15px; font-weight: 900; text-transform: uppercase;">DREWNO</h4>
+                        <span id="payment-wood-status" style="font-size: 14px; font-weight: 900; color: #000; background: rgba(255,255,255,0.4); padding: 0 5px; border-radius: 3px;">0 / 0</span>
+                    </div>
+                    <div id="payment-wood-inputs" style="display: flex; flex-direction: column; gap: 8px;"></div>
+                </div>
+                <div id="payment-stone-section" style="margin-bottom: 15px;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #2b1d0f; padding-bottom: 3px; margin-bottom: 10px;">
+                        <h4 style="margin: 0; color: #000; font-size: 15px; font-weight: 900; text-transform: uppercase;">KAMIEŃ</h4>
+                        <span id="payment-stone-status" style="font-size: 14px; font-weight: 900; color: #000; background: rgba(255,255,255,0.4); padding: 0 5px; border-radius: 3px;">0 / 0</span>
+                    </div>
+                    <div id="payment-stone-inputs" style="display: flex; flex-direction: column; gap: 8px;"></div>
+                </div>
+            </div>
+        </div>
+        <div style="position: absolute; bottom: 8%; left: 0; width: 100%; height: 16%; display: flex; justify-content: center; align-items: center; gap: 4%;">
+            <button onclick="document.getElementById('payment-modal').classList.add('hidden-display')" style="width: 32%; height: 70%; background: url('assets/ui/btn_odrzuc.png') no-repeat center; background-size: contain; border: none; background-color: transparent; color: transparent; font-size: 0; cursor: pointer; transition: transform 0.1s;" onmousedown="this.style.transform='scale(0.95)'" onmouseup="this.style.transform='scale(1.0)'"></button>
+            <button id="payment-confirm-btn" onclick="confirmBuildingPayment()" style="width: 32%; height: 70%; background: url('assets/ui/btn_zatwierdz.png') no-repeat center; background-size: contain; border: none; background-color: transparent; color: transparent; font-size: 0; cursor: pointer; transition: transform 0.1s, filter 0.3s; filter: grayscale(1) brightness(0.6);" onmousedown="this.style.transform='scale(0.95)'" onmouseup="this.style.transform='scale(1.0)'" disabled></button>
+        </div>
+    </div>
+</div>
+
+<div id="toast-container" style="position: fixed; bottom: 20px; right: 20px; display: flex; flex-direction: column; gap: 10px; z-index: 9999; pointer-events: none;"></div>
+
+<div id="armory-modal" class="hidden-display" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 5000; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(8px);">
+    <div style="position: relative; height: 90vh; max-height: 900px; aspect-ratio: 4/5; background-image: url('assets/ui/build_frame_v2.png'); background-size: 100% 100%; background-position: center; filter: drop-shadow(0 0 50px #000);">
+        <div style="position: absolute; top: 9%; left: 0; width: 100%; height: 8%; display: flex; justify-content: center; align-items: center; z-index: 10;">
+            <h2 style="color: #d4af37; margin: 0; text-transform: uppercase; font-size: 18px; font-weight: 900; letter-spacing: 2px; text-shadow: 2px 2px 4px #000;">ZBROJOWNIA</h2>
+        </div>
+        <div style="position: absolute; top: 20%; bottom: 27%; left: 14%; right: 14%; display: flex; flex-direction: column;">
+            <div style="text-align: center; margin-bottom: 10px; border-bottom: 2px solid #5a4529; padding-bottom: 5px;">
+                <span style="color: #4a3623; font-size: 12px; font-weight: bold; text-transform: uppercase;">Zgromadzony Oręż</span>
+            </div>
+            <div id="armory-list-container" class="mroczny-scroll" style="overflow-y: auto; flex-grow: 1; padding-right: 5px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-content: start;"></div>
+        </div>
+        <div style="position: absolute; bottom: 8%; left: 0; width: 50%; height: 16%; display: flex; justify-content: center; align-items: center;">
+            <button onclick="document.getElementById('armory-modal').classList.add('hidden-display')" style="width: 65%; height: 70%; background: url('assets/ui/btn_odrzuc.png') no-repeat center; background-size: contain; border: none; background-color: transparent; color: transparent; font-size: 0; cursor: pointer; transition: transform 0.1s;" onmousedown="this.style.transform='scale(0.95)'" onmouseup="this.style.transform='scale(1.0)'">Zamknij</button>
+        </div>
+    </div>
+</div>
+
+<div id="barracks-modal" class="hidden-display" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 5000; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(5px);">
+    <div style="background: url('assets/ui/wooden_board.png') no-repeat center; background-size: 100% 100%; width: 600px; height: 750px; position: relative; padding: 60px 40px; box-sizing: border-box; font-family: 'Cinzel', serif;">
+
+        <button onclick="document.getElementById('barracks-modal').classList.add('hidden-display')" style="position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); background: url('assets/ui/btn_confirm.png') no-repeat center; background-size: 100% 100%; border: none; color: #f0e6d2; width: 160px; height: 50px; font-weight: bold; cursor: pointer; text-shadow: 2px 2px 4px #000; z-index: 10;">ZAMKNIJ</button>
+
+        <h2 style="text-align: center; color: #d4af37; margin-top: 0; font-size: 26px; text-shadow: 2px 2px 4px #000; margin-bottom: 20px;">KOSZARY</h2>
+
+        <div style="display: flex; gap: 15px; justify-content: center; margin-bottom: 25px;">
+            <button onclick="window.openArmory()" style="flex: 1; background: #2b1d0f; color: #d4af37; border: 2px solid #8b0000; padding: 12px; cursor: pointer; font-family: 'Cinzel', serif; font-size: 14px; font-weight: bold; text-transform: uppercase; box-shadow: inset 0 0 10px rgba(0,0,0,0.8); transition: 0.2s;">
+                🛡️ Zbrojownia
+            </button>
+            <button onclick="window.showRecruitmentPanel()" style="flex: 1; background: #8b0000; color: #fff; border: 2px solid #ff4444; padding: 12px; cursor: pointer; font-family: 'Cinzel', serif; font-size: 14px; font-weight: bold; text-transform: uppercase; box-shadow: inset 0 0 10px rgba(0,0,0,0.8); transition: 0.2s;">
+                ⚔️ Werbunek
+            </button>
+        </div>
+
+        <div style="background: url('assets/ui/parchment.png') no-repeat center; background-size: 100% 100%; width: 100%; height: 460px; padding: 40px; box-sizing: border-box; overflow-y: auto; position: relative;" id="barracks-content">
+            <h3 style="text-align: center; color: #5a4529; border-bottom: 2px dashed #8b4513; padding-bottom: 10px; margin-top: 0;">ZAAŁOGOWANI WOJOWNICY</h3>
+            <div id="barracks-warriors-list" style="display: flex; flex-direction: column; gap: 10px; margin-top: 15px;">
+                <div style="text-align: center; color: #5a4529; font-style: italic;">Przegląd szyków...</div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<div id="warrior-inspect-modal" class="hidden-display" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 5100; display: flex; align-items: center; justify-content: center;">
+    <div style="width: 80%; max-width: 400px; background: #1a1a1a; border: 2px solid #5a4529; border-radius: 8px; padding: 20px; box-shadow: 0 0 20px #000; color: #f0e6d2;">
+        <h3 id="inspect-warrior-name" style="color: #d4af37; text-align: center; margin-top: 0; border-bottom: 1px solid #5a4529; padding-bottom: 10px; text-transform: uppercase;">Imię Wojownika</h3>
+        <div style="margin-bottom: 20px;">
+            <h4 style="color: #8b0000; margin-bottom: 10px; font-size: 14px; text-transform: uppercase;">Wyposażenie</h4>
+            <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.05); padding: 10px; border: 1px solid #2b1d0f; margin-bottom: 5px;">
+                <div><span style="font-size: 11px; color: #a9a9a9; display: block;">Broń Główna</span><b id="inspect-weapon-name" style="font-size: 13px;">Brak</b></div>
+                <button onclick="changeEquipment('weapon')" style="background: #2b1d0f; color: #d4af37; border: 1px solid #5a4529; padding: 5px 10px; cursor: pointer; font-size: 10px; text-transform: uppercase;">Zmień</button>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.05); padding: 10px; border: 1px solid #2b1d0f;">
+                <div><span style="font-size: 11px; color: #a9a9a9; display: block;">Pancerz</span><b id="inspect-armor-name" style="font-size: 13px;">Brak</b></div>
+                <button onclick="changeEquipment('armor')" style="background: #2b1d0f; color: #d4af37; border: 1px solid #5a4529; padding: 5px 10px; cursor: pointer; font-size: 10px; text-transform: uppercase;">Zmień</button>
+            </div>
+        </div>
+        <div>
+            <h4 style="color: #8b0000; margin-bottom: 10px; font-size: 14px; text-transform: uppercase;">Biegłości w Orężu</h4>
+            <div id="inspect-proficiencies-list" style="font-size: 12px; color: #b0a080;"></div>
+        </div>
+        <button onclick="document.getElementById('warrior-inspect-modal').classList.add('hidden-display')" style="width: 100%; padding: 10px; background: #6b1c1c; color: white; border: none; margin-top: 20px; font-family: 'Cinzel', serif; font-weight: bold; cursor: pointer; text-transform: uppercase;">Zamknij Inspekcję</button>
+    </div>
+</div>
+
+<script>
+    // Krótki skrypt UI do obsługi wysuwania panelu
+    window.toggleCarpentersPanel = function() {
+        const panel = document.getElementById('carpenters-panel');
+        if (panel) panel.classList.toggle('active');
+    };
+
+    // Otwieranie Modalu Odbudowy
+    window.openRepairModal = function(buildingId, buildingName, missingDurability) {
+        document.getElementById('repair-title').innerText = "ODBUDOWA: " + buildingName;
+        document.getElementById('repair-missing-val').innerText = missingDurability;
+        document.getElementById('repair-modal').classList.remove('hidden-display');
+
+        // Zapisujemy w globalnej pamięci obiekt naprawy, by logika JS w buildings.js mogła to przejąć
+        window.currentRepairRequest = { type: buildingId, missing: missingDurability };
+
+        // Funkcja renderująca suwaki dla naprawy - do zaprogramowania w pliku buildings.js
+        if (typeof window.renderRepairSliders === 'function') {
+            window.renderRepairSliders();
+        }
+    };
+
+</script>
+
+<script src="../src/core/globals.js"></script>
+
+
+<script src="../src/map/logistics.js"></script>
+
+<script src="../src/map/time.js"></script>
+<script src="../src/data/resources.js"></script>
+<script src="../src/map/randomEvents.js"></script>
+<script src="../src/map/terrain.js"></script>
+<script src="../src/buildings/build_core.js"></script>
+<script src="../src/map/buildings.js"></script>
+<script src="../src/buildings/blacksmith_ui.js"></script>
+
+<script src="../src/map/expeditions.js"></script>
+<script src="../src/map/engine.js"></script>
+
+<div id="debug-controls" class="hidden-display" style="position: fixed; bottom: 50px; right: 10px; z-index: 10000; background: rgba(0,0,0,0.8); padding: 15px; border: 1px solid #444; border-radius: 8px; text-align: center;">
+    <div id="speedometer-container" style="position: fixed; top: 80px; right: 20px; z-index: 4000; background: rgba(0,0,0,0.85); border: 2px solid #d4af37; padding: 10px; border-radius: 50%; width: 70px; height: 70px; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: 0 0 15px rgba(0,0,0,0.7); pointer-events: none;">
+        <b id="speed-value" style="color: #32cd32; font-size: 20px; font-family: 'Cinzel', serif; margin-bottom: -5px;">0.0</b>
+        <span style="color: #aaa; font-size: 10px; font-weight: bold; text-transform: uppercase;">km/h</span>
+    </div>
+
+    <div id="dev-pad" style="position: fixed; bottom: 30px; right: 20px; z-index: 4000; display: grid; grid-template-columns: 50px 50px 50px; gap: 8px; background: rgba(20,15,10,0.9); padding: 12px; border-radius: 15px; border: 2px solid #5a4529; box-shadow: 0 10px 25px rgba(0,0,0,0.8);">
+        <div></div>
+        <button id="dev-up" style="width:50px; height:50px; cursor: pointer; background: #2b1d0f; color: #d4af37; border: 1px solid #8b4513; border-radius: 8px; font-size: 20px;">⬆️</button>
+        <div></div>
+
+        <button id="dev-left" style="width:50px; height:50px; cursor: pointer; background: #2b1d0f; color: #d4af37; border: 1px solid #8b4513; border-radius: 8px; font-size: 20px;">⬅️</button>
+        <button id="dev-center" style="width:50px; height:50px; cursor: pointer; background: #8b0000; color: white; border: 1px solid #ff4444; border-radius: 8px; font-size: 18px;" title="Powrót do GPS">🛰️</button>
+        <button id="dev-right" style="width:50px; height:50px; cursor: pointer; background: #2b1d0f; color: #d4af37; border: 1px solid #8b4513; border-radius: 8px; font-size: 20px;">➡️</button>
+
+        <div></div>
+        <button id="dev-down" style="width:50px; height:50px; cursor: pointer; background: #2b1d0f; color: #d4af37; border: 1px solid #8b4513; border-radius: 8px; font-size: 20px;">⬇️</button>
+        <div></div>
+    </div>
+</div>
+<button id="debug-toggle-btn" onclick="window.toggleDebugPanel()"
+        style="position: fixed; bottom: 10px; right: 10px; z-index: 10001; background: rgba(0,0,0,0.7); color: #ffaa00; border: 1px solid #ffaa00; padding: 5px 10px; font-family: 'Cinzel', serif; cursor: pointer; border-radius: 5px;">
+    🛠️ DEBUG
+</button>
+
+<div id="scout-panel" class="hidden-display"
+     style="position: fixed; top: 55px; right: 10px; z-index: 4000; background: rgba(30,25,20,0.98); border: 2px solid #5a4529; padding: 15px; border-radius: 10px; color: #d4af37; font-family: 'Cinzel', serif; width: 230px; box-shadow: 0 5px 25px rgba(0,0,0,0.7); max-height: 70vh; overflow-y: auto;">
+
+    <h4 style="margin: 0 0 12px 0; font-size: 15px; text-align: center; border-bottom: 1px solid #5a4529; padding-bottom: 8px; letter-spacing: 1px;">📜 Zwiad Terenu</h4>
+
+    <div id="legend-content" style="display: flex; flex-direction: column; gap: 12px; font-size: 13px;">
+
+        <div class="legend-group" data-type="water">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <label style="cursor:pointer;"><input type="checkbox" class="filter-check" data-type="water" checked> 🔵 Wody <span id="count-water" style="font-size: 10px; color: #888;">(0)</span></label>
+                <span class="toggle-list" style="cursor:pointer; font-size: 12px; color: #8b0000;">▼</span>
+            </div>
+            <ul id="list-water" style="display:none; margin: 8px 0 0 15px; padding: 0; list-style: none; color: #aaa; font-size: 11px; border-left: 1px dotted #5a4529; padding-left: 10px;"></ul>
+        </div>
+
+        <div class="legend-group" data-type="forest">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <label style="cursor:pointer;"><input type="checkbox" class="filter-check" data-type="forest" checked> 🌲 Lasy <span id="count-forest" style="font-size: 10px; color: #888;">(0)</span></label>
+                <span class="toggle-list" style="cursor:pointer; font-size: 12px; color: #8b0000;">▼</span>
+            </div>
+            <ul id="list-forest" style="display:none; margin: 8px 0 0 15px; padding: 0; list-style: none; color: #aaa; font-size: 11px; border-left: 1px dotted #5a4529; padding-left: 10px;"></ul>
+        </div>
+
+        <div class="legend-group" data-type="shrine">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <label style="cursor:pointer;"><input type="checkbox" class="filter-check" data-type="shrine" checked> ⛩️ Miejsca <span id="count-shrine" style="font-size: 10px; color: #888;">(0)</span></label>
+                <span class="toggle-list" style="cursor:pointer; font-size: 12px; color: #8b0000;">▼</span>
+            </div>
+            <ul id="list-shrine" style="display:none; margin: 8px 0 0 15px; padding: 0; list-style: none; color: #aaa; font-size: 11px; border-left: 1px dotted #5a4529; padding-left: 10px;"></ul>
+        </div>
+
+    </div>
+
+    <button onclick="window.toggleScoutPanel()" style="width: 100%; margin-top: 15px; background: #4a3721; color: #f0e6d2; border: 1px solid #5a4529; padding: 5px; cursor: pointer; font-family: 'Cinzel', serif; font-size: 11px;">Zwiń zwoje</button>
+</div>
+
+</body>
+</html>
