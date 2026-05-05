@@ -25,8 +25,14 @@ app.use(cors());
 
 // --- UDOSTĘPNIANIE FRONTENDU PRZEZ NODE.JS ---
 // Zakładam, że folder 'client' jest obok folderu 'server'
-app.use(express.static(path.join(__dirname, '../client/public')));
-app.use(express.static(path.join(__dirname, '../client'))); // Alternatywna ścieżka, jeśli index.html jest prosto w /client
+// --- POPRAWIONE ŚCIEŻKI STATYCZNE ---
+// Musimy uwzględnić, że server.js jest w folderze 'server',
+// a pliki klienta są obok w 'client'.
+app.use(express.static(path.join(__dirname, '../../client/public')));
+app.use(express.static(path.join(__dirname, '../../client')));
+app.use(express.static(path.join(__dirname, '../../client/src/map')));
+app.use(express.static(path.join(__dirname, '../../client/src/ui')));
+app.use(express.static(path.join(__dirname, '../../client/src/buildings')));// Alternatywna ścieżka, jeśli index.html jest prosto w /client
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: "*" } });
 
