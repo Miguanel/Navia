@@ -17,7 +17,8 @@ let buildingMarkers = window.buildingMarkers;
 window.map = L.map('map').setView([49.972, 18.388], 15);
 L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(window.map);
 
-window.socket = io("http://localhost:3000");
+// Usunięcie adresu sprawi, że socket połączy się z tym samym serwerem, z którego wczytano stronę (Render lub localhost)
+window.socket = io();
 
 // Znaczniki i obiekty na mapie
 window.playerMarker = null;
