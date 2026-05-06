@@ -1,5 +1,5 @@
 // Łączymy się z lokalnym serwerem podczas programowania
-const socket = io("http://localhost:3000");
+const socket = window.socket;
 
 const statusUI = document.getElementById("status");
 
