@@ -384,6 +384,95 @@
         .cost-badge.wood { color: #d2b48c; border-color: #8b4513; }
         .cost-badge.stone { color: #aaa; border-color: #555; }
     </style>
+    <style>
+        /* ==========================================
+   📱 RESPONSYWNOŚĆ DLA TELEFONÓW (MOBILE UI)
+   ========================================== */
+@media (max-width: 768px) {
+    /* 1. Kompresja Górnego Skarbca */
+    #hud-top {
+        flex-direction: column;
+        padding: 5px;
+        gap: 5px;
+    }
+    .treasury-panel {
+        padding: 5px 10px;
+    }
+    .resource-grid {
+        grid-template-columns: repeat(5, 1fr) !important;
+        gap: 5px;
+        font-size: 11px;
+    }
+    .gold-val { font-size: 12px; }
+
+    /* 2. Zegar i Zwiad */
+    #hud-time-panel {
+        min-width: unset;
+        width: 100%;
+        padding: 5px 10px;
+        justify-content: space-between;
+    }
+    #hud-clock { font-size: 18px; margin-left: 5px; }
+    #hud-time-icon { font-size: 24px; }
+    #hud-season-text { font-size: 11px; }
+    #hud-day-text { font-size: 9px; }
+
+    /* 3. Ozdobne Modale (Pergaminy) - ratowanie miejsca */
+    .n-modal-ui {
+        padding: 40px 20px 20px 20px !important;
+        background-size: 100% 100%;
+        width: 100% !important;
+        height: auto;
+        max-height: 90vh;
+        overflow-y: auto;
+    }
+    .n-modal-msg {
+        padding: 40px 20px 20px 20px !important;
+    }
+
+    /* 4. Aplikacyjny Dolny Pasek Nawigacji (Bottom Nav) */
+    #hud-bottom {
+        bottom: 0;
+        width: 100%;
+        background: rgba(10, 10, 15, 0.95);
+        border-top: 2px solid #d4af37;
+        display: flex;
+        justify-content: space-around;
+        padding: 0;
+        box-shadow: 0 -5px 15px rgba(0,0,0,0.8);
+    }
+    .action-btn {
+        flex: 1;
+        border: none;
+        border-right: 1px solid #333;
+        border-radius: 0;
+        background: transparent;
+        padding: 10px 0;
+        font-size: 11px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 5px;
+        box-shadow: none;
+    }
+    .action-btn:last-child { border-right: none; }
+    .action-btn span { display: block; }
+    .action-btn i { font-size: 20px; font-style: normal; } /* Ikony */
+
+    /* 5. Menu Budowy z dołu */
+    #build-menu { padding: 10px; padding-bottom: 60px; /* Miejsce na bottom nav */ }
+    .build-options { gap: 10px; }
+    .build-card { flex: 0 0 110px; padding: 8px; }
+
+    /* 6. Ekran Grodu (City Screen) */
+    .city-landscape {
+        grid-template-columns: repeat(2, 1fr); /* 2 kolumny zamiast 4 na telefonie */
+        grid-template-rows: auto;
+        padding: 10px;
+    }
+}
+
+    </style>
 </head>
 <body>
 
@@ -429,7 +518,17 @@
     <div id="map"></div>
 
     <div id="hud-bottom">
-        <button class="action-btn" onclick="openBuildMenu()">🗺️<span>Rozkazy Królewskie</span></button>
+        <button class="action-btn" onclick="openBuildMenu()">
+            <i>🗺️</i><span>Buduj</span>
+        </button>
+        <!-- W przyszłości ten przycisk zmieni funkcję zależnie od Roli (Gród Władyki lub Ekwipunek Wiedźmina) -->
+        <button class="action-btn" onclick="openCityScreen('city-id-placeholder')">
+            <i>🏰</i><span>Twój Gród</span>
+        </button>
+        <!-- Nowa zakładka na dziennik / misje -->
+        <button class="action-btn" onclick="toggleThreatsPanel()">
+            <i>⚠️</i><span>Zagrożenia</span>
+        </button>
     </div>
 
     <div id="build-menu">
